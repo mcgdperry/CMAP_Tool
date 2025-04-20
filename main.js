@@ -59,6 +59,27 @@ ipcMain.handle('getAppDir', () => {
     return appBundleDir;
   }
 });
+
+ipcMain.handle('save-rect-css', async (event, filename, contents) => {
+  const saveDir = path.join(app.getAppPath(), '../../../..', 'css');
+  const savePath = path.join(saveDir, path.basename(filename));
+
+  // Ensure the directory exists
+  if (!fs.existsSync(saveDir)) {
+    fs.mkdirSync(saveDir, { recursive: true });
+  }
+
+  // Write the CSS file
+  fs.writeFileSync(savePath, contents, 'utf-8');
+});
+
+ipcMain.handle('read-rect-css', async (event, filename) => {
+  const cssPath = path.join(app.getAppPath(), '../../../..', filename); // or adjust to match your structure
+  if (fs.existsSync(cssPath)) {
+    return fs.readFileSync(cssPath, 'utf-8');
+  }
+  return '';
+});
 /*
 function getAppDir() {
   return isDev ? process.cwd() : path.dirname(process.execPath);
