@@ -236,7 +236,7 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    width: 100px;
+    width: 224px;
     height: 24px;
     font-family: 'rale-bd';
     font-size: 10px;
@@ -273,7 +273,8 @@ body {
 }
 
 .tile.expandable:hover {
-    height: 160px;
+    height: 300px;
+    width: 300px;
     z-index: 1;
 }
 
@@ -478,7 +479,50 @@ body {
     background-color: rgba(255, 0, 0, 0.2);
   }
 
-
+.rect-label {
+    color: #ffffff;
+}
+/*
+.tab-strip::after {
+    content: '⇢';
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 0 5px;
+    font-size: 14px;
+    color: #333;
+    background: linear-gradient(to right, transparent, white);
+  }
+*/
+  .tab-strip {
+    display: flex;
+    overflow-x: auto;
+    gap: 5px;
+    padding-top: 4px;
+    margin: 2px 0;
+    position: relative;
+  }
+  
+  .tab-thumb {
+    flex: 0 0 auto;
+    width: 60px;
+    text-align: center;
+    cursor: pointer;
+  }
+  
+  .tab-thumb img {
+    width: 100%;
+    height: 65px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+  
+  .tab-label {
+    font-size: 10px;
+    margin-top: 2px;
+    color: #000;
+  }
+  
 /*
 .inv{
 	background-color:#03F;

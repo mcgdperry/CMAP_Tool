@@ -80,6 +80,39 @@ ipcMain.handle('read-rect-css', async (event, filename) => {
   }
   return '';
 });
+
+ipcMain.handle('read-attachment', async (event, filename) => {
+  const filePath = path.join(app.getAppPath(), '../../../..', filename); // Outside app bundle
+  try {
+    return fs.readFileSync(filePath, 'utf-8');
+  } catch (err) {
+    throw new Error(`Unable to read ${filePath}: ${err.message}`);
+  }
+});
+
+
+ipcMain.handle('save-attachment', async (event, filename, lineToWrite, update = false) => {
+	const savePath = path.join(app.getAppPath(), '../../../..', filename); // Adjusted for external writing
+
+	// Ensure parent folder exists (like 'js/')
+	const folder = path.dirname(savePath);
+	if (!fs.existsSync(folder)) {
+		fs.mkdirSync(folder, { recursive: true });
+	}
+
+	let existingLines = [];
+	if (fs.existsSync(savePath)) {
+		const content = fs.readFileSync(savePath, 'utf-8');
+		existingLines = content.split('\n').filter(line => line.trim());
+	}
+
+	const btnId = (lineToWrite.match(/\$\('#(.+?)'\)/) || [])[1];
+	const filtered = existingLines.filter(line => !line.includes(`$('#${btnId}')`));
+	filtered.push(lineToWrite.trim());
+
+	fs.writeFileSync(savePath, filtered.join('\n') + '\n', 'utf-8');
+});
+
 /*
 function getAppDir() {
   return isDev ? process.cwd() : path.dirname(process.execPath);
@@ -136,6 +169,23 @@ ipcMain.on('generate-manifest', (event, fileContent) => {
       });
   } catch (err) {
       dialog.showErrorBox('Save Failed', err.message);
+  }
+});
+
+ipcMain.handle('remove-lines-containing', async (event, filePath, search) => {
+  try {
+    const savePath = path.join(app.getAppPath(), '../../../..', filePath);
+    if (!fs.existsSync(savePath)) return;
+
+    const content = fs.readFileSync(savePath, 'utf-8');
+    const updated = content
+      .split('\n')
+      .filter(line => !line.includes(search))
+      .join('\n');
+
+    fs.writeFileSync(savePath, updated, 'utf-8');
+  } catch (err) {
+    console.error('Failed to remove lines:', err);
   }
 });
 

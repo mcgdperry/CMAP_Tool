@@ -8,5 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openManifest: () => ipcRenderer.invoke('openManifest'),
     getTileAssets: (tileId) => ipcRenderer.invoke('get-tile-assets', tileId),
     saveRectCSS: (filename, contents) => ipcRenderer.invoke('save-rect-css', filename, contents),
-    readRectCSS: async (filename) => ipcRenderer.invoke('read-rect-css', filename)
+    readRectCSS: async (filename) => ipcRenderer.invoke('read-rect-css', filename),
+    saveAttachment: (filename, contents) => ipcRenderer.invoke('save-attachment', filename, contents),
+    readAttachment: (filename) => ipcRenderer.invoke('read-attachment', filename),
+    removeLinesContaining: (filePath, search) => ipcRenderer.invoke('remove-lines-containing', filePath, search)
 });
