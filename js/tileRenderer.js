@@ -1,9 +1,10 @@
 // tileRenderer.js - converted to window.* format
 
-window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId, updatePreview) {
+window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId) {
 	const $container = $('#tile-cont');
 	$container.empty();
-  
+	const $preview = $('<div id="tile-hover-preview"></div>').appendTo('#bg1').hide();
+
 	const tileValues = {};
 	$('.tile').each(function () {
 	  const col = $(this).data('col');
@@ -73,6 +74,17 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId, upd
 	  }
 	}
 	
+	$container.find('.tile-input').on('input', function () {
+		const $tile = $(this).closest('.tile');
+		const col = $tile.data('col');
+		const row = $tile.data('row');
+		window.tileArr[col][row] = $(this).val();
+	  
+		if (window.previewPane && typeof window.previewPane.update === 'function') {
+		  window.previewPane.update();
+		}
+	});
+	
 	if (typeof updatePreview === 'function') {
 		updatePreview();
 	}
@@ -82,11 +94,15 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId, upd
 	  window.zoomToFit(tileArr);
 	}
 
+	// Update preview when tile inputs change
+	$(document).on('input', '.tile-input', () => {
+		this.update();
+	});
+  
+
 	// ✅ Attach event listeners after DOM is updated
 	$container.find('.tile-thumbnail').on('click', window.editorPanel.handleTileClick);
 	$container.find('.circle, .tab-thumb').on('click', window.editorPanel.handleIndicatorClick);
-
-	const $preview = $('<div id="tile-hover-preview"></div>').appendTo('#bg1').hide();
 
 	$(document).on('mouseenter', '.circle', function (e) {
 		const imgPath = $(this).data('img');
@@ -107,6 +123,14 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId, upd
 		$preview.hide().empty();
 	});
 
+	$(document).off('click', '.right-btn').on('click', '.right-btn', function () {
+		const col = parseInt($(this).data('col'));
+		if (window.tileArr[col] && col === window.tileArr.length - 1) {
+			window.tileArr.push(['']);
+			window.tileRenderer.showTiles(window.tileArr, false);
+		}
+	});
+
 	$(document).on('click', '.right-btn', function () {
 		const col = parseInt($(this).data('col'));
 		if (window.tileArr[col] && col === window.tileArr.length - 1) {
@@ -115,27 +139,50 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId, upd
 		}
 	});
 		
-	$(document).on('click', '.down-btn', function () {
+	$('#tile-cont').off('click', '.down-btn').on('click', '.down-btn', function () {
 		const col = parseInt($(this).data('col'));
-		if (window.tileArr[col]) {
-			window.tileArr[col].push('');
-			window.tileRenderer.showTiles(window.tileArr, false);
+		if (!window.tileArr[col]) return;
+	
+		// Add a single tile
+		window.tileArr[col].push('');
+		window.tileRenderer.showTiles(window.tileArr, window.tileRenderer.isVerticalLayout);
+	});
+
+	$('#tile-cont').off('click', '.del-btn').on('click', '.del-btn', function () {
+		const col = parseInt($(this).data('col'));
+		const row = parseInt($(this).data('row'));
+	
+		if (!window.tileArr[col]) return;
+	
+		if (row === 0 && window.tileArr[col].length === 1) {
+			// Remove entire column if it's the only tile
+			window.tileArr.splice(col, 1);
+		} else {
+			// Otherwise remove just the row
+			window.tileArr[col].splice(row, 1);
 		}
+	
+		window.tileRenderer.showTiles(window.tileArr, window.tileRenderer.isVerticalLayout);
 	});
   };
-
+  
   window.tileRenderer = {
-	init(tileArr, { isVerticalLayout, onTileClick, onIndicatorClick, updatePreview }) {
-		this.tileArr = tileArr;
-		this.isVerticalLayout = isVerticalLayout;
-		this.onTileClick = onTileClick;
-		this.onIndicatorClick = onIndicatorClick;
-		this.updatePreview = updatePreview;
-		this.showTiles(tileArr, isVerticalLayout, updatePreview); // first render
+	init(tileArr, { isVerticalLayout, onTileClick, onIndicatorClick }) {
+	  this.tileArr = tileArr;
+	  this.isVerticalLayout = isVerticalLayout;
+	  this.onTileClick = onTileClick;
+	  this.onIndicatorClick = onIndicatorClick;
+	  this.showTiles(tileArr, isVerticalLayout); // no need to pass updatePreview anymore
 	},
-
-	showTiles(tileArr, isVerticalLayout, updatePreview) {
-		window.renderTiles(tileArr, isVerticalLayout, window.formatTileId, updatePreview);
+  
+	showTiles(tileArr, isVerticalLayout) {
+	  window.renderTiles(tileArr, isVerticalLayout, window.formatTileId);
+  
+	  // ✨ Always update the preview whenever tiles are rendered
+	  if (window.previewPane && typeof window.previewPane.update === 'function') {
+		window.previewPane.update();
+	  }
 	}
-};
+  };
+  
   

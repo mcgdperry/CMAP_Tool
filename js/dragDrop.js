@@ -56,9 +56,9 @@ window.dragDrop = {
 			  const $tileThumb = $(`[data-tileid="${tileId}"]`).closest('.tile').find('.tile-thumbnail');
 			  $tileThumb.append($circle[0]);
 			  $circle.css({
-				position: 'relative',
-				top: '-10px',
-				left: `${10 + (index - 1) * 24}px`,
+				position: 'absolute',
+				top: '120px',
+				left: `${30 + (index - 1) * 24}px`,
 				transform: 'none',
 				zIndex: 1
 			  });

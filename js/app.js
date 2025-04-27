@@ -15,6 +15,8 @@ $(function () {
 	// 🌍 Expose globally for other modules
 	window.tileArr = tileArr;
 
+	window.previewPane.init(tileArr);
+
 	// 🔁 Central preview update used across components
 	const updatePreview = () => {
 		const brand = $('#inp-brandname').val();
@@ -30,8 +32,7 @@ $(function () {
 		window.tileRenderer.init(tileArr, {
 			isVerticalLayout,
 			onTileClick:  window.editorPanel.handleTileClick.bind(window.editorPanel),
-			onIndicatorClick:  window.editorPanel.handleIndicatorClick.bind(window.editorPanel),
-			updatePreview
+			onIndicatorClick:  window.editorPanel.handleIndicatorClick.bind(window.editorPanel)
 		});
 	}
 

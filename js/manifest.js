@@ -32,20 +32,7 @@ window.manifest = {
 			const brand = $('#inp-brandname').val().trim() || 'Brand';
 			window.manifest.updatePreview(tileArr, brand);
 		});
-	
-		$('#copy-manifest').on('click', () => {
-			const content = document.getElementById('manifest-preview-content')?.textContent || '';
-			navigator.clipboard.writeText(content).then(() => {
-			$('#copy-manifest').text('✅');
-			setTimeout(() => $('#copy-manifest').text('📋'), 1000);
-			});
-		});
   
-		$('#toggle-preview-btn').on('click', () => {
-			const panel = $('#manifest-preview-panel');
-			panel.toggle();
-		});
-
 	  // "Open Manifest" to restore tiles from file
 		$('#open-btn').on('click', async function () {
 			const result = await window.electronAPI.openManifest();

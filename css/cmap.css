@@ -25,7 +25,7 @@
   -webkit-touch-callout: none; 
   -webkit-user-select: none; 
 }
-
+/*
 @media only screen 
   and (min-width: 1080px) 
   and (orientation: landscape) 
@@ -67,7 +67,7 @@
 		-webkit-transform: scale(1.334);
 	  }
 }
-
+*/
 body {
     margin: 0;
     padding: 0;
@@ -382,15 +382,19 @@ body {
     position: fixed;
     top: 200px;
     right: 280px;
-    
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   }
   
   #manifest-preview-header {
     cursor: move;
     -webkit-app-region: drag;
     
-    background: #f4f4f4;
-    padding: 8px 10px;
+    background: #f0f0f0;
+    padding: 8px 12px;
     font-weight: bold;
     font-size: 14px;
     border-bottom: 1px solid #ddd;
@@ -399,6 +403,11 @@ body {
     justify-content: space-between;
     align-items: center;
     user-select: none;
+    transition: background-color 0.2s ease;
+  }
+
+  #manifest-preview-header:hover {
+    background-color: #e0e0e0;
   }
   
   #manifest-buttons button {
@@ -436,6 +445,13 @@ body {
     z-index: 9999;
     font-family: monospace;
     resize: both;
+  }
+  
+  #manifest-preview-content[contenteditable="true"] {
+    border: 1px dashed #888;
+    padding: 8px;
+    min-height: 200px;
+    cursor: text;
   }
   
   .image-editor {
@@ -521,6 +537,11 @@ body {
     font-size: 10px;
     margin-top: 2px;
     color: #000;
+  }
+  
+  .group-label {
+    pointer-events: none;
+    user-select: none;
   }
   
 /*
