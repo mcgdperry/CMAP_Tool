@@ -80,15 +80,21 @@ window.editorPanel = {
 		const rectId = `${type}${index}`;
 		const jsPath = `js/slide_${tileId}.js`;
 
+		console.log('[Indicator Click]', { tileId, rectId, imagePath, type, jsPath });
+
 		window.electronAPI.readAttachment(jsPath).then(jsContent => {
 			const tabMatch = jsContent.match(new RegExp(`\\$\\('#${type}-btn${index}'\\)\\.appendTo\\('#tab(\\d+)'\\)`));
 			if (tabMatch) {
 				const tabIndex = tabMatch[1];
-				window.editorPanel.open({ tileId, rectId: `tab${tabIndex}`, imagePath, type: 'tab' });
+				console.log('[Tab Match Found]', { tabIndex });
+				window.editorPanel.open({ tileId, rectId: `${type}${index}`, imagePath, type });
 			} else {
+				console.log('[No Tab Match] Opening indicator directly');
 				window.editorPanel.open({ tileId, rectId, imagePath, type });
 			}
-		}).catch(() => {
+		}).catch(err => {
+			console.warn('[readAttachment Error]', err);
+    		console.log('[Fallback] Opening indicator directly');
 			window.editorPanel.open({ tileId, rectId, imagePath, type });
 		});
 	},
@@ -236,9 +242,6 @@ window.editorPanel = {
 	},
 
 	_createRect(id, selector, bgColor, index = 0, baseTop = 100, group = '') {
-		console.log("index is"+index);
-		console.log("id is"+id);
-		console.log("basetop is"+baseTop);
 		const rect = document.createElement('div');
 		rect.className = 'rect draggable resizable';
 		rect.dataset.selector = selector;

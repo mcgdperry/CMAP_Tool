@@ -40,26 +40,36 @@ window.manifest = {
 		
 			const lines = result.content.trim().split('\n');
 			if (lines.length === 0) return;
-		
+			
+			$('#tile-cont').empty();
 			const brandMatch = lines[0].match(/^(.+?)_\d+_\d+\|/);
 			const brandName = brandMatch ? brandMatch[1] : 'Brand';
 			$('#inp-brandname').val(brandName);
 		
-			tileArr.length = 0; // reset
+			//tileArr.length = 0; // reset
+			window.tileArr = []; // Reset
 			lines.forEach(line => {
-			const match = line.match(/^.+?_(\d+)_(\d+)\|(.+)$/);
-			if (!match) return;
+				const match = line.match(/^.+?_(\d+)_(\d+)\|(.+)$/);
+				if (!match) return;
+			
+				const col = parseInt(match[1]);
+				const row = parseInt(match[2]) - 1;
+				const label = match[3];
 		
-			const col = parseInt(match[1]);
-			const row = parseInt(match[2]) - 1;
-			const label = match[3];
-		
-			if (!tileArr[col]) tileArr[col] = [];
-			tileArr[col][row] = label;
+				if (!window.tileArr[col]) window.tileArr[col] = [];
+				window.tileArr[col][row] = label;
 			});
-		
+			
+			window.started = true;
 			if (window.tileRenderer?.showTiles) {
-			window.tileRenderer.showTiles(tileArr, false);
+				window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout);
+			}
+			
+			window.previewPane.tileArr = window.tileArr;
+			// ✅ FIX: update preview after opening manifest
+			if (window.previewPane?.update) {
+				
+				window.previewPane.update();
 			}
 		});
 	}

@@ -4,3 +4,7 @@
 /node_modules
 /js/garb
 /bak*
+/css/slide*
+/js/slide*
+/presManifest.txt
+/_*

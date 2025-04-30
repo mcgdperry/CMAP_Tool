@@ -70,10 +70,16 @@ $(function () {
 
 	// 🔄 Switch layout
 	$('#switch-btn').on('click', function () {
-		isVerticalLayout = !isVerticalLayout;
+		window.isVerticalLayout = !window.isVerticalLayout;
 		if (window.tileRenderer?.showTiles) {
-			window.tileRenderer.showTiles(tileArr, isVerticalLayout, updatePreview);
+			window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout); // ✅ only pass 2 args
 		}
+		if (window.previewPane?.update) {
+			window.previewPane.update(); // ✅ update the preview separately
+		}
+		// ✨ Change button text
+		$(this).text(window.isVerticalLayout ? 'Switch to Horizontal' : 'Switch to Vertical');
+
 	});
 
 	// 📦 First tile on background click
@@ -82,7 +88,8 @@ $(function () {
 			tileArr.push(['']);
 			started = true;
 			if (window.tileRenderer?.showTiles) {
-				window.tileRenderer.showTiles(tileArr, isVerticalLayout, updatePreview);
+				//window.tileRenderer.showTiles(tileArr, isVerticalLayout, updatePreview);
+				window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout);
 			}
 		}
 	});

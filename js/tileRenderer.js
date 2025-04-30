@@ -62,9 +62,10 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId) {
 			<input type="text" class="tile-input" placeholder="${tileId}" value="${savedValue}" />
 			<div class="tile-thumbnail" data-tileid="${tileId}" data-img="${assets.thumb}">
 			  ${assets.thumb ? `<img src="${assets.thumb}" alt="thumb">` : ''}
+			  ${indicatorsHtml}
 			</div>
 			${tabThumbsHtml}
-			${indicatorsHtml}
+			
 			${isLastColumn && row === 0 ? `<div class="tile-btn right-btn ${btnClass}" data-col="${col}"></div>` : ''}
 			${isBottomTile ? `<div class="tile-btn down-btn ${btnClass}" data-col="${col}"></div>` : ''}
 			<div class="tile-btn del-btn" data-col="${col}" data-row="${row}"></div>
@@ -96,7 +97,7 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId) {
 
 	// Update preview when tile inputs change
 	$(document).on('input', '.tile-input', () => {
-		this.update();
+		window.previewPane.update();
 	});
   
 
@@ -177,11 +178,12 @@ window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId) {
   
 	showTiles(tileArr, isVerticalLayout) {
 	  window.renderTiles(tileArr, isVerticalLayout, window.formatTileId);
-  
+		
 	  // ✨ Always update the preview whenever tiles are rendered
 	  if (window.previewPane && typeof window.previewPane.update === 'function') {
 		window.previewPane.update();
 	  }
+	  if (window.dragDrop?.setup) window.dragDrop.setup();
 	}
   };
   
