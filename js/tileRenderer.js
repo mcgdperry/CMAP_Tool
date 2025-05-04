@@ -130,7 +130,7 @@ window.tileRenderer = {
 	  $(document).on('mouseleave', '.circle', function () {
 		$preview.hide().empty();
 	  });
-  
+	  /*
 	  // Right button handler
 	  $container.off('click', '.right-btn').on('click', '.right-btn', function () {
 		const col = parseInt($(this).data('col'));
@@ -138,7 +138,7 @@ window.tileRenderer = {
 		const newTileId = `${col}_${newRow.toString().padStart(2, '0')}`;
 		if (!window.projectData.tiles[newTileId]) {
 		  window.projectData.tiles[newTileId] = {
-			label: `Slide ${col}-${newRow}`,
+			label: `Slide ${col}-${newRow.toString().padStart(2, '0')}`,
 			images: { thumb: '', tabs: [], mods: [], refs: [] },
 			docked: {},
 			rects: {}
@@ -146,7 +146,28 @@ window.tileRenderer = {
 		  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
 		}
 	  });
-  
+	  */
+
+	  $container.off('click', '.right-btn').on('click', '.right-btn', function () {
+		const currentCol = parseInt($(this).data('col'));
+		const newCol = currentCol + 1;
+	  
+		// Determine next available row (always start with row 01)
+		const newRow = 1;
+		const newTileId = `${newCol}_${newRow.toString().padStart(2, '0')}`;
+	  
+		if (!window.projectData.tiles[newTileId]) {
+		  window.projectData.tiles[newTileId] = {
+			label: `Slide ${newCol}-${newRow.toString().padStart(2, '0')}`,
+			images: { thumb: '', tabs: [], mods: [], refs: [] },
+			docked: {},
+			rects: {}
+		  };
+	  
+		  // 🔁 Re-render the tile layout after adding the new column
+		  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+		}
+	  });
 	  // Down button handler
 	  $container.off('click', '.down-btn').on('click', '.down-btn', function () {
 		const col = parseInt($(this).data('col'));
@@ -154,7 +175,7 @@ window.tileRenderer = {
 		const newRow = Math.max(...existingRows) + 1;
 		const newTileId = `${col}_${newRow.toString().padStart(2, '0')}`;
 		window.projectData.tiles[newTileId] = {
-		  label: `Slide ${col}-${newRow}`,
+		  label: `Slide ${col}-${newRow.toString().padStart(2, '0')}`,
 		  images: { thumb: '', tabs: [], mods: [], refs: [] },
 		  docked: {},
 		  rects: {}

@@ -550,7 +550,8 @@ input[type="text"]#inp-brandname {
 #manifest-preview-panel {
     position: fixed;
     top: 200px;
-    right: 280px;
+    left: 50%;
+  transform: translateX(-50%);
     border: 1px solid #ccc;
     border-radius: 8px;
     overflow: hidden;

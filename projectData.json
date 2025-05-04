@@ -1,7 +1,7 @@
 {
   "tiles": {
     "0_01": {
-      "label": "Slide 0-0srfd",
+      "label": "Slide 0-01",
       "images": {
         "thumb": "screens/slide_0_01_tab1.jpg",
         "tabs": [
@@ -21,47 +21,43 @@
           "screens/slide_0_01_ref3.png"
         ]
       },
-      "docked": {
-        "mod-btn1": "tab2",
-        "ref-btn1": "tab2",
-        "ref-btn2": "tab4"
-      },
+      "docked": {},
       "rects": {
         "#mod-btn1": {
-          "top": 69,
-          "left": 172,
-          "width": 104,
-          "height": 173
+          "top": 100,
+          "left": 100,
+          "width": 100,
+          "height": 60
         },
         "#mod-btn2": {
           "top": 140,
-          "left": 275,
-          "width": 104,
-          "height": 211
+          "left": 150,
+          "width": 100,
+          "height": 60
         },
         "#mod-btn3": {
-          "top": 86,
-          "left": 449,
-          "width": 178,
-          "height": 121
+          "top": 180,
+          "left": 200,
+          "width": 177,
+          "height": 231
         },
         "#ref-btn1": {
-          "top": 356,
-          "left": 358,
-          "width": 182,
-          "height": 152
+          "top": 300,
+          "left": 100,
+          "width": 100,
+          "height": 60
         },
         "#ref-btn2": {
-          "top": 236,
-          "left": 499,
-          "width": 312,
-          "height": 110
+          "top": 340,
+          "left": 150,
+          "width": 100,
+          "height": 60
         },
         "#ref-btn3": {
-          "top": 392,
-          "left": 569,
-          "width": 242,
-          "height": 160
+          "top": 380,
+          "left": 200,
+          "width": 100,
+          "height": 60
         },
         "#tab1": {
           "top": 500,
@@ -86,23 +82,11 @@
           "left": 250,
           "width": 100,
           "height": 60
-        },
-        "#mod2 .pop-bg": {
-          "top": 100,
-          "left": 100,
-          "width": 1056,
-          "height": 498
-        },
-        "#mod2 .close-btn": {
-          "top": 177,
-          "left": 1203,
-          "width": 48,
-          "height": 26
         }
       }
     },
     "1_01": {
-      "label": "xcvjkljv",
+      "label": "Slide 1-01",
       "images": {
         "thumb": "screens/slide_1_01_bg1.jpg",
         "tabs": [],
@@ -126,7 +110,7 @@
       "rects": {}
     },
     "1_03": {
-      "label": "HAMSRWOMND",
+      "label": "Slide 1-03",
       "images": {
         "thumb": "screens/slide_1_03_bg1.jpg",
         "tabs": [],
