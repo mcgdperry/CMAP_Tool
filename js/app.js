@@ -1,96 +1,88 @@
 $(function () {
-	// 💠 Setup all UI elements (adds inputs, buttons, image editor, etc.)
+	// Initialize core UI
 	if (window.ui?.setup) window.ui.setup();
-
-	// 💠 Define formatTileId globally so everyone can use it
+  
+	// Define globally accessible tile ID formatter
 	window.formatTileId = function (col, row) {
-		return `${col}_${(row + 1).toString().padStart(2, '0')}`;
+	  return `${col}_${(row + 1).toString().padStart(2, '0')}`;
 	};
-
-	// 💠 Initialize main tile state
-	const tileArr = [];
-	let isVerticalLayout = false;
-	let started = false;
-
-	// 🌍 Expose globally for other modules
-	window.tileArr = tileArr;
-
-	window.previewPane.init(tileArr);
-
-	// 🔁 Central preview update used across components
-	const updatePreview = () => {
-		const brand = $('#inp-brandname').val();
-		if (window.manifest?.updatePreviewPane) {
-			window.manifest.updatePreviewPane(tileArr, brand);
-		}
-	};
-
-	window.editorPanel.init();
-	
-	// 🧱 Initialize tileRenderer
-	if (window.tileRenderer?.init) {
-		window.tileRenderer.init(tileArr, {
-			isVerticalLayout,
-			onTileClick:  window.editorPanel.handleTileClick.bind(window.editorPanel),
-			onIndicatorClick:  window.editorPanel.handleIndicatorClick.bind(window.editorPanel)
-		});
+  
+	// Start projectData if not already defined
+	window.projectData = window.projectData || { tiles: {} };
+	window.isVerticalLayout = false;
+  
+	// Preview pane
+	if (window.previewPane?.init) {
+	  window.previewPane.init();
 	}
-
-	// 🎯 Hook drag-drop logic
+  
+	// Editor
+	if (window.editorPanel?.init) {
+	  window.editorPanel.init();
+	}
+  
+	// Tile Renderer
+	if (window.tileRenderer?.showTiles) {
+	  window.tileRenderer.showTiles(window.projectData, window.isVerticalLayout);
+	}
+  
+	// Drag/drop setup
 	if (window.dragDrop?.setup) {
-		window.dragDrop.setup();
+	  window.dragDrop.setup();
 	}
-
-	// 📝 Manifest UI handlers
+  
+	// Manifest (optional for legacy support)
 	if (window.manifest?.init) {
-		window.manifest.init(tileArr);
+	  window.manifest.init();
 	}
-
-	// 🔍 Zoom controls
+  
+	// Zoom scale slider
 	$('#scale-slider').on('input', function () {
-		const val = $(this).val();
-		$('#tile-cont').css('transform', `scale(${val / 100})`);
-		$('#zoom-to-fit').prop('checked', false);
+	  const scale = $(this).val() / 100;
+	  $('#tile-cont').css('transform', `scale(${scale})`);
+	  $('#zoom-to-fit').prop('checked', false);
 	});
-
+  
+	// Zoom to fit
 	$('#zoom-to-fit').on('change', function () {
-		if (this.checked) {
-			const cols = tileArr.length;
-			const rows = Math.max(...tileArr.map(col => col.length));
-			const container = $('#tile-cont');
-			const w = (cols * 130) + 10;
-			const h = (rows * 110) + 10;
-			const scaleW = container.width() / w;
-			const scaleH = container.height() / h;
-			const scale = Math.min(scaleW, scaleH, 1);
-			$('#scale-slider').val(Math.round(scale * 100));
-			container.css('transform', `scale(${scale})`);
-		}
+	  if (this.checked) {
+		const tileCount = Object.keys(window.projectData.tiles || {}).length;
+		const estCols = Math.ceil(Math.sqrt(tileCount));
+		const estRows = estCols;
+  
+		const container = $('#tile-cont');
+		const map = $('#map-scroll');
+		const w = (estCols * 140) + 10;
+		const h = (estRows * 120) + 10;
+  
+		const scaleW = map.width() / w;
+		const scaleH = map.height() / h;
+		const scale = Math.min(scaleW, scaleH, 1);
+  
+		$('#scale-slider').val(Math.round(scale * 100));
+		container.css('transform', `scale(${scale})`);
+	  }
 	});
-
-	// 🔄 Switch layout
+  
+	// Layout switcher
 	$('#switch-btn').on('click', function () {
-		window.isVerticalLayout = !window.isVerticalLayout;
-		if (window.tileRenderer?.showTiles) {
-			window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout); // ✅ only pass 2 args
-		}
-		if (window.previewPane?.update) {
-			window.previewPane.update(); // ✅ update the preview separately
-		}
-		// ✨ Change button text
-		$(this).text(window.isVerticalLayout ? 'Switch to Horizontal' : 'Switch to Vertical');
-
+	  window.isVerticalLayout = !window.isVerticalLayout;
+	  window.tileRenderer?.showTiles(window.projectData, window.isVerticalLayout);
+	  window.previewPane?.update();
+	  $(this).text(window.isVerticalLayout ? 'Switch to Horizontal' : 'Switch to Vertical');
 	});
-
-	// 📦 First tile on background click
+  
+	// Click anywhere to start with one tile
 	$('#bg1').on('click', function () {
-		if (!started) {
-			tileArr.push(['']);
-			started = true;
-			if (window.tileRenderer?.showTiles) {
-				//window.tileRenderer.showTiles(tileArr, isVerticalLayout, updatePreview);
-				window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout);
-			}
-		}
+	  if (!Object.keys(window.projectData.tiles || {}).length) {
+		window.projectData.tiles['0_01'] = {
+		  label: 'Slide 0-1',
+		  images: { thumb: '', tabs: [], mods: [], refs: [] },
+		  docked: {},
+		  rects: {}
+		};
+		window.tileRenderer.showTiles(window.projectData, window.isVerticalLayout);
+	  }
 	});
-});
+  });
+  

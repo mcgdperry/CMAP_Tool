@@ -1,76 +1,79 @@
 window.manifest = {
-	generateText(tileArr, brandName) {
-	  const brand = brandName.trim() || 'Brand';
+	generateText() {
+	  const brand = $('#inp-brandname').val().trim() || 'Brand';
+	  const tileArr = window.projectManager.getTileArr();
+  
 	  return tileArr.map((column, colIndex) =>
-		column.map((label, rowIndex) => {
-		  const tileId = `${colIndex}_${(rowIndex + 1).toString().padStart(2, '0')}`;
-		  const display = label.trim() || `Slide ${colIndex}-${rowIndex + 1}`;
-		  return `${brand}_${tileId}|${display}`;
+		column.map((tileId, rowIndex) => {
+		  const label = window.projectData.tiles[tileId]?.label?.trim() || `Slide ${colIndex}-${rowIndex + 1}`;
+		  return `${brand}_${tileId}|${label}`;
 		}).join('\n')
 	  ).join('\n');
 	},
   
-	updatePreview(tileArr, brandName) {
+	updatePreview() {
 	  const previewEl = document.getElementById('manifest-preview-content');
 	  if (previewEl) {
-		previewEl.textContent = window.manifest.generateText(tileArr, brandName);
+		previewEl.textContent = window.manifest.generateText();
 	  }
 	},
   
-	async save(tileArr, brandName) {
-	  const text = window.manifest.generateText(tileArr, brandName);
-	  await window.electronAPI.generateManifest(text);
+	async save() {
+	  const manifestText = window.manifest.generateText();
+	  await window.electronAPI.generateManifest(manifestText);
 	},
   
-	init(tileArr) {
-		$('#gen-btn').on('click', () => {
-			const brand = $('#inp-brandname').val().trim() || 'Brand';
-			window.manifest.save(tileArr, brand);
-		});
-	
-		$('#inp-brandname').on('input', () => {
-			const brand = $('#inp-brandname').val().trim() || 'Brand';
-			window.manifest.updatePreview(tileArr, brand);
+	init() {
+	  $('#gen-btn').on('click', () => {
+		window.manifest.save();
+	  });
+  
+	  $('#inp-brandname').on('input', () => {
+		window.manifest.updatePreview();
+	  });
+  
+	  // 📂 Open Manifest
+	  $('#open-btn').on('click', async function () {
+		const result = await window.electronAPI.openManifest();
+		if (result.canceled) return;
+  
+		const lines = result.content.trim().split('\n');
+		if (!lines.length) return;
+  
+		const brandMatch = lines[0].match(/^(.+?)_\d+_\d+\|/);
+		const brandName = brandMatch ? brandMatch[1] : 'Brand';
+		$('#inp-brandname').val(brandName);
+  
+		// Reset projectData.tiles
+		window.projectData.tiles = {};
+  
+		lines.forEach(line => {
+		  const match = line.match(/^(.+?)_(\d+)_(\d+)\|(.+)$/);
+		  if (!match) return;
+  
+		  const [, , colStr, rowStr, label] = match;
+		  const col = parseInt(colStr);
+		  const row = parseInt(rowStr);
+		  const tileId = `${col}_${row.toString().padStart(2, '0')}`;
+  
+		  window.projectData.tiles[tileId] = {
+			label,
+			images: { thumb: '', tabs: [], mods: [], refs: [] },
+			docked: {},
+			rects: {}
+		  };
 		});
   
-	  // "Open Manifest" to restore tiles from file
-		$('#open-btn').on('click', async function () {
-			const result = await window.electronAPI.openManifest();
-			if (result.canceled) return;
-		
-			const lines = result.content.trim().split('\n');
-			if (lines.length === 0) return;
-			
-			$('#tile-cont').empty();
-			const brandMatch = lines[0].match(/^(.+?)_\d+_\d+\|/);
-			const brandName = brandMatch ? brandMatch[1] : 'Brand';
-			$('#inp-brandname').val(brandName);
-		
-			//tileArr.length = 0; // reset
-			window.tileArr = []; // Reset
-			lines.forEach(line => {
-				const match = line.match(/^.+?_(\d+)_(\d+)\|(.+)$/);
-				if (!match) return;
-			
-				const col = parseInt(match[1]);
-				const row = parseInt(match[2]) - 1;
-				const label = match[3];
-		
-				if (!window.tileArr[col]) window.tileArr[col] = [];
-				window.tileArr[col][row] = label;
-			});
-			
-			window.started = true;
-			if (window.tileRenderer?.showTiles) {
-				window.tileRenderer.showTiles(window.tileArr, window.isVerticalLayout);
-			}
-			
-			window.previewPane.tileArr = window.tileArr;
-			// ✅ FIX: update preview after opening manifest
-			if (window.previewPane?.update) {
-				
-				window.previewPane.update();
-			}
-		});
+		// Show tiles
+		if (window.tileRenderer?.showTiles) {
+		  window.tileRenderer.showTiles(window.projectData, window.isVerticalLayout);
+		}
+  
+		// Update preview
+		if (window.previewPane?.update) {
+		  window.previewPane.update();
+		}
+	  });
 	}
   };
+  

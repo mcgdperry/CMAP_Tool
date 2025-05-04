@@ -1,190 +1,178 @@
-// tileRenderer.js - converted to window.* format
+// tileRenderer.js
 
-window.renderTiles = async function(tileArr, isVerticalLayout, formatTileId) {
-	const $container = $('#tile-cont');
-	$container.empty();
-	const $preview = $('<div id="tile-hover-preview"></div>').appendTo('#bg1').hide();
-
-	const tileValues = {};
-	$('.tile').each(function () {
-	  const col = $(this).data('col');
-	  const row = $(this).data('row');
-	  const tileId = formatTileId(col, row);
-	  tileValues[tileId] = $(this).find('.tile-input').val();
-	});
+window.tileRenderer = {
+	isVerticalLayout: false,
   
-	for (let col = 0; col < tileArr.length; col++) {
-	  const isLastColumn = (col === tileArr.length - 1);
-	  const lastSubTileIndex = tileArr[col].length - 1;
+	showTiles(projectData = window.projectData, isVerticalLayout = false) {
+	  this.isVerticalLayout = isVerticalLayout;
+	  const $container = $('#tile-cont');
+	  $container.empty();
   
-	  for (let row = 0; row < tileArr[col].length; row++) {
-		const isBottomTile = (row === lastSubTileIndex);
-		const tileId = formatTileId(col, row);
-		const savedValue = tileValues[tileId] || tileArr[col][row];
-		const leftPos = isVerticalLayout ? (row * 130) + 5 : (col * 130) + 5;
-		const topPos = isVerticalLayout ? (col * 110) + 5 : (row * 110) + 5;
+	  // Create hover preview element if it doesn't exist
+	  let $preview = $('#tile-hover-preview');
+	  if (!$preview.length) {
+		$preview = $('<div id="tile-hover-preview"></div>').appendTo('#bg1').hide();
+	  }
+  
+	  const tileKeys = Object.keys(projectData.tiles || {});
+	  tileKeys.forEach((tileId) => {
+		const tileData = projectData.tiles[tileId];
+		const [col, row] = tileId.split('_').map(Number);
+		const formattedRow = row.toString().padStart(2, '0');
+		const topPos = isVerticalLayout ? (col * 120) : (row * 120);
+		const leftPos = isVerticalLayout ? (row * 140) : (col * 140);
 		const btnClass = isVerticalLayout ? 'vt' : 'hz';
   
-		const assets = await window.electronAPI.getTileAssets(tileId);
+		// Build indicators HTML
 		let indicatorsHtml = '';
+		if (tileData.images?.mods || tileData.images?.refs) {
+		  indicatorsHtml += `<div class="tile-indicators">`;
+  
+		  (tileData.images.mods || []).forEach((mod, i) => {
+			indicatorsHtml += `<div class="circle blue" data-img="${mod}" data-type="mod" data-index="${i + 1}" data-tileid="${tileId}">M${i + 1}</div>`;
+		  });
+  
+		  (tileData.images.refs || []).forEach((ref, i) => {
+			indicatorsHtml += `<div class="circle green" data-img="${ref}" data-type="ref" data-index="${i + 1}" data-tileid="${tileId}">R${i + 1}</div>`;
+		  });
+  
+		  indicatorsHtml += `</div>`;
+		}
+  
+		// Build tab thumbnails HTML
 		let tabThumbsHtml = '';
-  
-		if (assets.tabs.length || assets.mods.length || assets.refs.length) {
-		  indicatorsHtml += '<div class="tile-indicators">';
-		  tabThumbsHtml += '<div class="tab-strip">';
-  
-		  assets.tabs.forEach((tab, i) => {
+		if (tileData.images?.tabs?.length) {
+		  tabThumbsHtml = `<div class="tab-strip">`;
+		  tileData.images.tabs.forEach((tab, i) => {
 			tabThumbsHtml += `
 			  <div class="tab-thumb" data-img="${tab}" data-type="tab" data-index="${i + 1}" data-tileid="${tileId}">
 				<img src="${tab}" />
 				<div class="tab-label">Tab ${i + 1}</div>
 			  </div>`;
 		  });
-		  tabThumbsHtml += '</div>';
-  
-		  assets.mods.forEach((mod, idx) => {
-			indicatorsHtml += `<div class="circle blue" data-img="${mod}" data-type="mod" data-index="${idx + 1}" data-tileid="${tileId}">M${idx + 1}</div>`;
-		  });
-  
-		  assets.refs.forEach((ref, idx) => {
-			indicatorsHtml += `<div class="circle green" data-img="${ref}" data-type="ref" data-index="${idx + 1}" data-tileid="${tileId}">R${idx + 1}</div>`;
-		  });
-		  indicatorsHtml += '</div>';
+		  tabThumbsHtml += `</div>`;
 		}
   
-		const hasContent = assets.thumb || assets.tabs.length || assets.mods.length || assets.refs.length;
-		const expandableClass = hasContent ? 'expandable' : '';
+		// Determine if this is the last column and bottom tile
+		const isLastColumn = !tileKeys.some((key) => {
+		  const [kCol, kRow] = key.split('_').map(Number);
+		  return kCol === col && kRow > row;
+		});
+		const isBottomTile = !tileKeys.some((key) => {
+		  const [kCol, kRow] = key.split('_').map(Number);
+		  return kCol === col && kRow > row;
+		});
+
+		const isTopOfColumn = row === 1;
+		const isRightmostCol = !Object.keys(projectData.tiles).some(id => parseInt(id.split('_')[0]) > col);
+
+		const rightBtnHtml = (isRightmostCol && isTopOfColumn) ? `<div class="tile-btn right-btn ${btnClass}" data-col="${col}"></div>` : '';
+
+		
   
-		const tileHTML = `
-		  <div id="tile-${col}-${row}" class="tile ${expandableClass} ${row === 0 ? 'main-tile' : 'sub-tile'}" 
-			   data-col="${col}" data-row="${row}" 
-			   style="left: ${leftPos}px; top: ${topPos}px;">
-			<input type="text" class="tile-input" placeholder="${tileId}" value="${savedValue}" />
-			<div class="tile-thumbnail" data-tileid="${tileId}" data-img="${assets.thumb}">
-			  ${assets.thumb ? `<img src="${assets.thumb}" alt="thumb">` : ''}
+		// Build tile HTML
+		const tile = $(`
+		  <div id="tile-${col}-${row}" class="tile expandable main-tile"
+			   data-col="${col}" data-row="${row}"
+			   style="left:${leftPos}px; top:${topPos}px;">
+			<input type="text" class="tile-input" value="${tileData.label}" placeholder="${tileId}" />
+			<div class="tile-thumbnail" data-tileid="${tileId}" data-img="${tileData.images?.thumb || ''}">
+			  ${tileData.images?.thumb ? `<img src="${tileData.images.thumb}" alt="thumb" />` : ''}
 			  ${indicatorsHtml}
 			</div>
 			${tabThumbsHtml}
-			
-			${isLastColumn && row === 0 ? `<div class="tile-btn right-btn ${btnClass}" data-col="${col}"></div>` : ''}
+			${rightBtnHtml}
 			${isBottomTile ? `<div class="tile-btn down-btn ${btnClass}" data-col="${col}"></div>` : ''}
 			<div class="tile-btn del-btn" data-col="${col}" data-row="${row}"></div>
-		  </div>`;
+		  </div>
+		`);
   
-		$container.append(tileHTML);
-	  }
-	}
-	
-	$container.find('.tile-input').on('input', function () {
+		$container.append(tile);
+	  });
+  
+	  // Input change handler
+	  $container.find('.tile-input').on('input', function () {
 		const $tile = $(this).closest('.tile');
 		const col = $tile.data('col');
 		const row = $tile.data('row');
-		window.tileArr[col][row] = $(this).val();
-	  
-		if (window.previewPane && typeof window.previewPane.update === 'function') {
-		  window.previewPane.update();
+		const tileId = `${col}_${row.toString().padStart(2, '0')}`;
+		if (window.projectData.tiles[tileId]) {
+		  window.projectData.tiles[tileId].label = $(this).val();
+		  if (window.previewPane?.update) window.previewPane.update();
 		}
-	});
-	
-	if (typeof updatePreview === 'function') {
-		updatePreview();
-	}
-	
-	
-	if ($('#zoom-to-fit').prop('checked')) {
-	  window.zoomToFit(tileArr);
-	}
-
-	// Update preview when tile inputs change
-	$(document).on('input', '.tile-input', () => {
-		window.previewPane.update();
-	});
+	  });
   
-
-	// ✅ Attach event listeners after DOM is updated
-	$container.find('.tile-thumbnail').on('click', window.editorPanel.handleTileClick);
-	$container.find('.circle, .tab-thumb').on('click', window.editorPanel.handleIndicatorClick);
-
-	$(document).on('mouseenter', '.circle', function (e) {
+	  // Zoom to fit if enabled
+	  if ($('#zoom-to-fit').prop('checked')) {
+		window.zoomToFit(projectData);
+	  }
+  
+	  // Indicator click handlers
+	  $container.find('.tile-thumbnail').on('click', window.editorPanel.handleTileClick);
+	  $container.find('.circle, .tab-thumb').on('click', window.editorPanel.handleIndicatorClick);
+  
+	  // Hover preview handlers
+	  $(document).on('mouseenter', '.circle', function (e) {
 		const imgPath = $(this).data('img');
 		if (!imgPath) return;
 		$preview.html(`<img src="${imgPath}" alt="preview">`).show();
-	});
-
-	$(document).on('mousemove', '.circle', function (e) {
+	  });
+  
+	  $(document).on('mousemove', '.circle', function (e) {
 		const offsetX = 120, offsetY = 200;
 		$preview.css({
-			top: `${e.pageY - offsetY}px`,
-			left: `${e.pageX - offsetX}px`,
-			display: 'block'
+		  top: `${e.pageY - offsetY}px`,
+		  left: `${e.pageX - offsetX}px`,
+		  display: 'block'
 		});
-	});
-
-	$(document).on('mouseleave', '.circle', function () {
+	  });
+  
+	  $(document).on('mouseleave', '.circle', function () {
 		$preview.hide().empty();
-	});
-
-	$(document).off('click', '.right-btn').on('click', '.right-btn', function () {
+	  });
+  
+	  // Right button handler
+	  $container.off('click', '.right-btn').on('click', '.right-btn', function () {
 		const col = parseInt($(this).data('col'));
-		if (window.tileArr[col] && col === window.tileArr.length - 1) {
-			window.tileArr.push(['']);
-			window.tileRenderer.showTiles(window.tileArr, false);
+		const newRow = 1;
+		const newTileId = `${col}_${newRow.toString().padStart(2, '0')}`;
+		if (!window.projectData.tiles[newTileId]) {
+		  window.projectData.tiles[newTileId] = {
+			label: `Slide ${col}-${newRow}`,
+			images: { thumb: '', tabs: [], mods: [], refs: [] },
+			docked: {},
+			rects: {}
+		  };
+		  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
 		}
-	});
-
-	$(document).on('click', '.right-btn', function () {
+	  });
+  
+	  // Down button handler
+	  $container.off('click', '.down-btn').on('click', '.down-btn', function () {
 		const col = parseInt($(this).data('col'));
-		if (window.tileArr[col] && col === window.tileArr.length - 1) {
-			window.tileArr.push(['']);
-			window.tileRenderer.showTiles(window.tileArr, false);
-		}
-	});
-		
-	$('#tile-cont').off('click', '.down-btn').on('click', '.down-btn', function () {
-		const col = parseInt($(this).data('col'));
-		if (!window.tileArr[col]) return;
-	
-		// Add a single tile
-		window.tileArr[col].push('');
-		window.tileRenderer.showTiles(window.tileArr, window.tileRenderer.isVerticalLayout);
-	});
-
-	$('#tile-cont').off('click', '.del-btn').on('click', '.del-btn', function () {
+		const existingRows = Object.keys(window.projectData.tiles).filter((key) => key.startsWith(`${col}_`)).map((key) => parseInt(key.split('_')[1]));
+		const newRow = Math.max(...existingRows) + 1;
+		const newTileId = `${col}_${newRow.toString().padStart(2, '0')}`;
+		window.projectData.tiles[newTileId] = {
+		  label: `Slide ${col}-${newRow}`,
+		  images: { thumb: '', tabs: [], mods: [], refs: [] },
+		  docked: {},
+		  rects: {}
+		};
+		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+	  });
+  
+	  // Delete button handler
+	  $container.off('click', '.del-btn').on('click', '.del-btn', function () {
 		const col = parseInt($(this).data('col'));
 		const row = parseInt($(this).data('row'));
-	
-		if (!window.tileArr[col]) return;
-	
-		if (row === 0 && window.tileArr[col].length === 1) {
-			// Remove entire column if it's the only tile
-			window.tileArr.splice(col, 1);
-		} else {
-			// Otherwise remove just the row
-			window.tileArr[col].splice(row, 1);
-		}
-	
-		window.tileRenderer.showTiles(window.tileArr, window.tileRenderer.isVerticalLayout);
-	});
-  };
+		const tileId = `${col}_${row.toString().padStart(2, '0')}`;
+		delete window.projectData.tiles[tileId];
+		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+	  });
   
-  window.tileRenderer = {
-	init(tileArr, { isVerticalLayout, onTileClick, onIndicatorClick }) {
-	  this.tileArr = tileArr;
-	  this.isVerticalLayout = isVerticalLayout;
-	  this.onTileClick = onTileClick;
-	  this.onIndicatorClick = onIndicatorClick;
-	  this.showTiles(tileArr, isVerticalLayout); // no need to pass updatePreview anymore
-	},
-  
-	showTiles(tileArr, isVerticalLayout) {
-	  window.renderTiles(tileArr, isVerticalLayout, window.formatTileId);
-		
-	  // ✨ Always update the preview whenever tiles are rendered
-	  if (window.previewPane && typeof window.previewPane.update === 'function') {
-		window.previewPane.update();
-	  }
+	  // Update preview pane
+	  if (window.previewPane?.update) window.previewPane.update();
 	  if (window.dragDrop?.setup) window.dragDrop.setup();
 	}
   };
-  
-  

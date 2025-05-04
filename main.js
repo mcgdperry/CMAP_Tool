@@ -208,24 +208,28 @@ ipcMain.handle('file:readAttachment', async (event, filename) => {
 });
 
 ipcMain.handle('file:saveAttachment', async (event, filename, lineToWrite, append = false) => {
-  try {
-    const fullSavePath = path.join(getAppDir(), filename);
-    const folder = path.dirname(fullSavePath);
-    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+  const appDir = isDev ? app.getAppPath() : path.dirname(app.getPath('exe'));
+  const fullSavePath = path.join(appDir, filename);
 
-    let existingLines = [];
-    if (fs.existsSync(fullSavePath)) {
-      existingLines = fs.readFileSync(fullSavePath, 'utf-8').split('\n').filter(line => line.trim());
-    }
-
-    const btnId = (lineToWrite.match(/\$\('#(.+?)'\)/) || [])[1];
-    const filtered = existingLines.filter(line => !line.includes(`$('#${btnId}')`));
-    filtered.push(lineToWrite.trim());
-
-    fs.writeFileSync(fullSavePath, filtered.join('\n') + '\n', 'utf-8');
-  } catch (err) {
-    console.error('Error saving attachment:', err);
+  if (typeof lineToWrite !== 'string') {
+    console.error('Invalid lineToWrite (must be string):', lineToWrite);
+    throw new Error('saveAttachment: lineToWrite must be a string');
   }
+
+  const folder = path.dirname(fullSavePath);
+  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+  let existingLines = [];
+  if (fs.existsSync(fullSavePath)) {
+    const content = fs.readFileSync(fullSavePath, 'utf-8');
+    existingLines = content.split('\n').filter(line => line.trim());
+  }
+
+  const btnId = (lineToWrite.match(/\$\('#(.+?)'\)/) || [])[1];
+  const filtered = existingLines.filter(line => !line.includes(`$('#${btnId}')`));
+  filtered.push(lineToWrite.trim());
+
+  fs.writeFileSync(fullSavePath, filtered.join('\n') + '\n', 'utf-8');
 });
 
 ipcMain.handle('file:removeLinesContaining', async (event, filePath, search) => {

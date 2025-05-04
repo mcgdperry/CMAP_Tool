@@ -1,22 +1,21 @@
-# CMAP_Tool
+# CMAPIVA Tool
 
-A macOS Electron app for generating Veeva-compatible `presManifest.txt` files based on a visual content map. Tiles represent slides, with thumbnails, tab/mod/ref indicators, and a live preview of the generated manifest. Includes support for reverse-loading from a manifest and managing screen thumbnails.
+An Electron-based desktop application for visualizing and managing Veeva-like interactive visual aids (IVAs) through an intuitive tile-based layout. Designed to streamline the content mapping, editing, and export workflow for slide decks and modular content commonly used in pharmaceutical marketing and sales.
 
----
+## Features
 
-## 🚀 Features
+- Drag-and-drop import of a `/screens` folder to auto-generate a structured tile layout
+- Editable preview pane with brand name and slide labels
+- Hover-based tile expansion and thumbnail strip for tab slides
+- Indicator circles for mods, refs, and tabs that can be docked or moved
+- In-app image editor with draggable, resizable rectangles to visually map button targets
+- Full project stored in a centralized `projectData` JSON structure
+- Export-ready architecture for generating per-tile `.js` and `.css` files (WIP)
 
-- Drag-and-drop visual tile interface
-- Auto-generated `presManifest.txt` file
-- Live preview pane
-- Tile thumbnails from a `screens/` folder
-- Support for tab/mod/ref indicators with hover previews
-- Zoom and “zoom to fit” layout scaling
-- Open existing manifest files and reconstruct tile map
-- Import a folder of screen images via the **Screens** button
+## Installation
 
----
+Clone this repo, then run:
 
-## 📁 Directory Layout
-
-After building the app, structure it like this:
+```bash
+npm install
+npm start

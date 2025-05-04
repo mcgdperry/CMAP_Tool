@@ -6,10 +6,15 @@ window.ui = {
         <label>Scale: <input type="range" id="scale-slider" min="50" max="150" value="100">%</label>
         <label><input type="checkbox" id="zoom-to-fit"> Zoom to Fit</label>
       </div>
-      <button id="screens-btn">Import Screens</button>
-      <div id="open-btn">Open Manifest</div>
-      <div id="gen-btn">Generate Manifest</div>
-      <button id="switch-btn">Switch Layout</button>
+      <div id="toolbar">
+        <button id="screens-btn">Import Screens</button>
+        <button id="open-btn">Open Manifest</button>
+        <button id="gen-btn">Generate Manifest</button>
+        <button id="switch-btn">Switch Layout</button>
+        <button id="export-json">Export JSON</button>
+        <button id="export-js">Export JS</button>
+        <button id="export-css">Export CSS</button>
+      </div>
       <textarea id="preview-pane" readonly></textarea>
       <div class="image-editor hidden">
         <div class="editor-header">
@@ -58,9 +63,9 @@ window.ui = {
     document.addEventListener('drop', async (e) => {
       e.preventDefault();
       $('#drop-overlay').removeClass('show');
-      $('#tile-cont').empty();
-      window.tileArr = [];
-      window.importedTileAssets = {};
+      //$('#tile-cont').empty();
+      //window.tileArr = [];
+      //window.importedTileAssets = {};
       const items = e.dataTransfer.items;
       if (!items.length) return;
 
@@ -85,6 +90,7 @@ window.ui = {
         }
         
         if (files.length) {
+          $('#tile-cont').empty();
           await window.ui._copyDroppedFiles(files);
           await window.ui._loadScreensAndLayout();
           window.ui.showToast('✅ Folder dropped and loaded!');
@@ -96,13 +102,50 @@ window.ui = {
         return;
       }
     });
+
+    $(document).on('click', '#export-json', async () => {
+      const jsonString = JSON.stringify(window.projectData, null, 2);
+      await window.electronAPI.saveAttachment('projectData.json', jsonString, false);
+      alert('JSON exported!');
+    });
+
+    $('#export-js').on('click', async () => {
+      const tiles = window.projectData.tiles;
+      for (const tileId in tiles) {
+        const docked = tiles[tileId].docked || {};
+        const lines = Object.entries(docked).map(
+          ([btnId, tabId]) => `$('#${btnId}').appendTo('#${tabId}');`
+        );
+        const content = lines.join('\n');
+        if (content) {
+          await window.electronAPI.saveAttachment(`js/slide_${tileId}.js`, content, false);
+        }
+      }
+      alert('JS files exported!');
+    });
+    
+    $('#export-css').on('click', async () => {
+      const tiles = window.projectData.tiles;
+      for (const tileId in tiles) {
+        const rects = tiles[tileId].rects || {};
+        let css = '';
+        for (const selector in rects) {
+          const { top, left, width, height } = rects[selector];
+          css += `${selector} {\n  top: ${top}px;\n  left: ${left}px;\n  width: ${width}px;\n  height: ${height}px;\n}\n\n`;
+        }
+        if (css) {
+          await window.electronAPI.saveAttachment(`css/slide_${tileId}.css`, css, false);
+        }
+      }
+      alert('CSS files exported!');
+    });
   },
 
   // -- Copy dropped files into screens folder
   _copyDroppedFiles: async (files) => {
     const appDir = await window.electronAPI.getAppDir();
     const screensFolder = `${appDir}/screens`;
-
+  
     const fileList = await Promise.all(files.map(async (file) => {
       const arrayBuffer = await file.arrayBuffer();
       return {
@@ -110,13 +153,16 @@ window.ui = {
         data: new Uint8Array(arrayBuffer)
       };
     }));
-
+  
     await window.electronAPI.deleteScreensFolder(screensFolder);
-
+  
     const copyResult = await window.electronAPI.copyFilesToScreens(fileList, screensFolder);
     if (!copyResult.success) {
       alert('Error copying dropped files: ' + (copyResult.error || 'Unknown error'));
     }
+    window.projectData = { tiles: {} };
+    // 👉 Clear projectData.tiles so layout refresh works cleanly
+    window.projectData.tiles = {};
   },
 
   // -- After any import (button or drop), clean tiles and load
@@ -126,67 +172,71 @@ window.ui = {
       alert('Error scanning screens folder.');
       return;
     }
-
+  
     const files = scanResult.files.filter(f => /\.(jpg|jpeg|png)$/i.test(f));
     if (!files.length) {
       alert('No valid images found');
       return;
     }
-
+  
     $('#tile-cont').empty();
-    window.tileArr = [];
-    window.importedTileAssets = {};
-
-    const assetsByTile = {};
+    window.projectData = { tiles: {} }; // 🔥 Clear and reset
+  
     const cacheBuster = Date.now();
-
+    const assetsByTile = {};
+  
     files.forEach(filename => {
       if (!filename.startsWith('slide_')) return;
-      if (!/\.(jpg|jpeg|png)$/i.test(filename)) return;
-
+  
       const base = filename.split('.')[0];
       const parts = base.split('_');
       if (parts.length < 3) return;
-
+  
       const col = parseInt(parts[1]);
       const row = parseInt(parts[2]);
       if (isNaN(col) || isNaN(row)) return;
-
+  
       const key = `${col}_${row.toString().padStart(2, '0')}`;
+      //const relPath = `screens/${filename}?v=${cacheBuster}`;
+      const relPath = `screens/${filename}`;
+  
       if (!assetsByTile[key]) {
         assetsByTile[key] = { thumb: '', tabs: [], mods: [], refs: [] };
       }
-
-      const relPath = `screens/${filename}?v=${cacheBuster}`;
-
+  
       if (/_bg1\.(jpg|png)$/i.test(filename)) {
         if (!assetsByTile[key].thumb) assetsByTile[key].thumb = relPath;
+      } else if (/_tab1\.(jpg|png)$/i.test(filename)) {
+        // fallback only if no _bg1 exists yet
+        if (!assetsByTile[key].thumb) assetsByTile[key].thumb = relPath;
+        assetsByTile[key].tabs.push(relPath);
       } else if (/_tab\d+\.(jpg|png)$/i.test(filename)) {
         assetsByTile[key].tabs.push(relPath);
       } else if (/_mod\d+\.(jpg|png)$/i.test(filename)) {
         assetsByTile[key].mods.push(relPath);
       } else if (/_ref\d+\.(jpg|png)$/i.test(filename)) {
         assetsByTile[key].refs.push(relPath);
-      }
+      }/**/
     });
-
-    window.importedTileAssets = assetsByTile;
-    window.electronAPI.getTileAssets = async function(tileId) {
-      return window.importedTileAssets[tileId] || { thumb: '', tabs: [], mods: [], refs: [] };
-    };
-
-    Object.keys(assetsByTile).forEach(tileId => {
-      const [colStr, rowStr] = tileId.split('_');
-      const col = parseInt(colStr);
-      const row = parseInt(rowStr) - 1;
-      if (!window.tileArr[col]) window.tileArr[col] = [];
-      window.tileArr[col][row] = `Slide ${col}-${row + 1}`;
-    });
-
-    window.tileRenderer.showTiles(window.tileArr, false);
-
+  
+    // 🔄 Convert to projectData.tiles
+    for (const tileId in assetsByTile) {
+      window.projectData.tiles[tileId] = {
+        label: `Slide ${tileId.replace('_', '-')}`,
+        images: {
+          thumb: assetsByTile[tileId].thumb,
+          tabs: assetsByTile[tileId].tabs,
+          mods: assetsByTile[tileId].mods,
+          refs: assetsByTile[tileId].refs
+        },
+        docked: {},  // Will be populated when indicators are dragged
+        rects: {}    // Will be populated from editor
+      };
+    }
+  
+    window.tileRenderer.showTiles(window.projectData, false);
+  
     if (window.previewPane?.update) {
-      window.previewPane.tileArr = window.tileArr;
       window.previewPane.update();
     }
   },
@@ -205,3 +255,4 @@ window.ui = {
     }, 2000);
   }
 };
+

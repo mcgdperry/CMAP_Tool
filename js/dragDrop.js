@@ -1,89 +1,77 @@
-// dragDrop.js
-
 window.dragDrop = {
 	setup: function () {
-	  interact('.circle').unset(); // 💥 Clear old bindings
-  
 	  interact('.circle').draggable({
 		inertia: true,
 		autoScroll: true,
 		listeners: {
 		  start(event) {
-			const t = event.target;
-			t.classList.add('dragging');
-			t.style.position = 'fixed';
-			t.style.transform = 'scale(1.2)';
-			t.style.zIndex = '1000';
+			const el = event.target;
+			el.classList.add('dragging');
+			el.style.transform = 'scale(1.3)';
+			el.style.zIndex = '1000';
+			el.style.position = 'fixed';
+			el.style.pointerEvents = 'none';
 		  },
 		  move(event) {
-			const t = event.target;
-			t.style.left = `${event.clientX - 20}px`;
-			t.style.top = `${event.clientY - 40}px`;
+			const el = event.target;
+			el.style.left = `${event.clientX - 20}px`;
+			el.style.top = `${event.clientY - 40}px`;
 		  },
-		  end: async function (event) {
-			const t = event.target;
-			t.classList.remove('dragging');
-			t.style.transform = 'scale(1)';
-			t.style.zIndex = '10';
-			t.style.position = 'relative';
-			t.style.left = '';
-			t.style.top = '';
+		  end(event) {
+			const el = event.target;
+			el.classList.remove('dragging');
+			el.style.transform = 'scale(1)';
+			el.style.zIndex = '10';
+			el.style.position = 'relative';
+			el.style.left = '';
+			el.style.top = '';
+			el.style.pointerEvents = 'auto';
   
-			const $circle = $(t);
+			const $circle = $(el);
+			const type = $circle.data('type');
+			const index = $circle.data('index');
+			const tileId = $circle.data('tileid');
+			const btnId = `${type}-btn${index}`;
+  
 			const dropX = event.clientX;
 			const dropY = event.clientY;
 			const $dropTarget = document.elementFromPoint(dropX, dropY);
   
-			const type = $circle.data('type');
-			const index = $circle.data('index');
-			const btnId = `${type}-btn${index}`;
-			const tileId = $circle.data('tileid');
-			const jsPath = `js/slide_${tileId}.js`;
+			const tileData = window.projectData.tiles[tileId];
+			if (!tileData) return;
   
 			if ($dropTarget && $dropTarget.closest('.tab-thumb')) {
 			  const $tab = $($dropTarget).closest('.tab-thumb');
 			  const tabIndex = $tab.data('index');
 			  const tabId = `tab${tabIndex}`;
-			  const jsLine = `$('#${btnId}').appendTo('#${tabId}');\n`;
   
-			  const $tile = $(`[data-tileid="${tileId}"]`).closest('.tile');
-			  if ($tile.find('.tab-thumb').length === 0) return;
-  
-			  await window.electronAPI.removeLinesContaining(jsPath, `$('#${btnId}')`);
-			  await window.electronAPI.saveAttachment(jsPath, String(jsLine), true);
+			  tileData.docked = tileData.docked || {};
+			  tileData.docked[btnId] = tabId;
   
 			  $tab.append($circle[0]);
 			  $circle.css({
-				marginTop: '4px',
-				marginLeft: `${10 + (index - 1) * 24}px`
+				position: 'relative',
+				top: 'calc(100% - 140px)',
+				left: `${-10 + (index - 1) * 24}px`,
+				transform: 'none',
+				zIndex: 10
 			  });
   
-			  const rect = document.querySelector(`[data-selector="#${btnId}"]`);
-			  if (rect && window.editorPanel.currentMode === 'main') {
-				rect.dataset.tab = tabId;
-			  }
 			} else {
-			  // Reattach to main tile
-			  await window.electronAPI.removeLinesContaining(jsPath, `$('#${btnId}')`);
 			  const $tileThumb = $(`[data-tileid="${tileId}"]`).closest('.tile').find('.tile-thumbnail');
-			  if ($tileThumb.length) {
-				$tileThumb.append($circle[0]);
-				$circle.css({
-					position: 'relative',
-					top: '',
-					left: '',
-					marginTop: '4px',
-					marginLeft: `${10 + (index - 1) * 24}px`,
-					zIndex: 1
-				});
-		      } else {
-				console.warn('❗ Could not find tile thumbnail for reattachment');
+  
+			  if (tileData.docked) {
+				delete tileData.docked[btnId];
 			  }
   
-			  const rect = document.querySelector(`[data-selector="#${btnId}"]`);
-			  if (rect && window.editorPanel.currentMode === 'main') {
-				delete rect.dataset.tab;
-			  }
+			  $tileThumb.closest('.tile').find('.tile-indicators').append($circle[0]);
+			  $circle.css({
+				position: 'relative',
+				top: '-4px',
+				left: `${(index - 1) * 24}px`,
+				transform: 'none',
+				zIndex: 1
+			  });
 			}
 		  }
 		}
