@@ -77,8 +77,16 @@ window.tileRenderer = {
 			   style="left:${leftPos}px; top:${topPos}px;">
 			<input type="text" class="tile-input" value="${tileData.label}" placeholder="${tileId}" />
 			<div class="tile-thumbnail" data-tileid="${tileId}" data-img="${tileData.images?.thumb || ''}">
-			  ${tileData.images?.thumb ? `<img src="${tileData.images.thumb}" alt="thumb" />` : ''}
-			  ${indicatorsHtml}
+			${tileData.images?.thumb
+				? `<img src="${tileData.images.thumb}" alt="thumb" />`
+				: `<div class="placeholder-upload" data-tileid="${tileId}" onclick="event.stopPropagation();">
+					 <label for="upload-${tileId}">
+					   <img src="images/placeholder.png" alt="Upload Slide" />
+					 </label>
+					 <input type="file" class="thumb-upload" id="upload-${tileId}" data-tileid="${tileId}" accept="image/*" />
+				   </div>`
+			  }
+			${indicatorsHtml}
 			</div>
 			${tabThumbsHtml}
 			${rightBtnHtml}
@@ -191,9 +199,35 @@ window.tileRenderer = {
 		delete window.projectData.tiles[tileId];
 		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
 	  });
-  
+
+	  $container.find('.thumb-upload').off('change').on('change', async function (e) {
+		const file = e.target.files[0];
+		const tileId = $(this).data('tileid');
+		if (!file || !tileId) return;
+	  
+		const ext = file.name.split('.').pop();
+		const newFileName = `slide_${tileId}_bg1.${ext}`;
+		
+		const reader = new FileReader();
+		reader.onload = async function () {
+		const arrayBuffer = reader.result;
+		await window.electronAPI.saveAttachment(`screens/${newFileName}`, arrayBuffer, true);
+
+		// Update JSON and re-render
+		window.projectData.tiles[tileId].images.thumb = `screens/${newFileName}`;
+		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+		};
+		reader.readAsArrayBuffer(file);
+	  
+		// Save to projectData
+		window.projectData.tiles[tileId].images.thumb = `screens/${newFileName}`;
+	  
+		// Refresh the tile layout to show the uploaded image
+		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+	  });
 	  // Update preview pane
 	  if (window.previewPane?.update) window.previewPane.update();
 	  if (window.dragDrop?.setup) window.dragDrop.setup();
 	}
-  };
+};
+

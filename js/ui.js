@@ -18,6 +18,7 @@ window.ui = {
       <textarea id="preview-pane" readonly></textarea>
       <div class="image-editor hidden">
         <div class="editor-header">
+        <div id="editor-info"></div>
           <button id="closeEditor">✕</button>
           <button id="saveEditor">Save</button>
         </div>
@@ -103,8 +104,24 @@ window.ui = {
       }
     });
 
-    $(document).on('click', '#export-json', async () => {
-      const jsonString = JSON.stringify(window.projectData, null, 2);
+    document.getElementById('export-json').addEventListener('click', async () => {
+      const sortedTiles = Object.keys(window.projectData.tiles)
+        .sort((a, b) => {
+          const [colA, rowA] = a.split('_').map(Number);
+          const [colB, rowB] = b.split('_').map(Number);
+          return colA - colB || rowA - rowB;
+        })
+        .reduce((acc, key) => {
+          acc[key] = window.projectData.tiles[key];
+          return acc;
+        }, {});
+    
+      const sortedProjectData = {
+        ...window.projectData,
+        tiles: sortedTiles
+      };
+    
+      const jsonString = JSON.stringify(sortedProjectData, null, 2);
       await window.electronAPI.saveAttachment('projectData.json', jsonString, false);
       alert('JSON exported!');
     });

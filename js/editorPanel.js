@@ -2,7 +2,7 @@ window.editorPanel = {
 	currentTileId: null,
 	currentRectId: null,
 	currentMode: 'main',
-  
+	
 	init() {
 	  const closeBtn = document.getElementById('closeEditor');
 	  const saveBtn = document.getElementById('saveEditor');
@@ -65,10 +65,31 @@ window.editorPanel = {
   
 	  document.querySelector('.image-editor').classList.remove('hidden');
 	  document.getElementById('editorImage').src = imagePath;
-  
+		
+
 	  const container = document.getElementById('editorRectsContainer');
 	  container.innerHTML = '';
-  
+
+	  const rectData = window.projectData.tiles[tileId]?.rects || {};
+	  const imgFileName = imagePath?.split('/').pop() || 'N/A';
+		
+	  // Create the info UI
+		const infoDiv = document.createElement('div');
+		infoDiv.id = 'editor-info';
+		infoDiv.innerHTML = `
+		<div class="editor-meta">
+			<strong>Tile ID:</strong> ${tileId}<br />
+			<strong>Image:</strong> ${imgFileName}<br />
+			<strong>Rects:</strong> ${Object.keys(rectData).length}
+		</div>
+		<div class="editor-buttons">
+			<button id="add-mod-btn">+ Mod</button>
+			<button id="add-ref-btn">+ Ref</button>
+			<button id="add-tab-btn">+ Tab</button>
+		</div>
+		`;
+		container.appendChild(infoDiv);
+		
 	  const rectStyles = window.projectManager.getTileRects(tileId, this.currentMode, rectId?.replace('tab', ''));
 	  console.log('📐 Rect styles for mode', this.currentMode, rectStyles);
   

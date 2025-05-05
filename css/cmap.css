@@ -201,7 +201,7 @@ input[type="text"]#inp-brandname {
 
 
 
-/*#inp-brandname,*/ .tile-input
+.tile-input
 {
 	position: absolute;
 	top: 20px;
@@ -680,4 +680,70 @@ input[type="text"]#inp-brandname {
     background: linear-gradient(to right, transparent, white);
   }
 */
-  
+
+.placeholder-upload {
+  width: 100%;
+  height: 100%;
+  background-color: #dfe6e9;
+  color: #636e72;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  text-align: center;
+}
+
+.placeholder-upload input[type="file"] {
+  display: none;
+}
+
+.placeholder-upload {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.placeholder-upload img {
+  max-width: 80%;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.placeholder-upload:hover img {
+  opacity: 1;
+}
+
+.placeholder-upload input[type="file"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+#editor-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f2f6;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.editor-buttons button {
+  margin-left: 8px;
+  padding: 4px 10px;
+  background: #0984e3;
+  border: none;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}

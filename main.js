@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+const appPath = app.getAppPath();
+
 const isDev = !app.isPackaged;
 
 function getAppDir() {
@@ -206,7 +208,7 @@ ipcMain.handle('file:readAttachment', async (event, filename) => {
   }
   */
 });
-
+/*
 ipcMain.handle('file:saveAttachment', async (event, filename, lineToWrite, append = false) => {
   const appDir = isDev ? app.getAppPath() : path.dirname(app.getPath('exe'));
   const fullSavePath = path.join(appDir, filename);
@@ -230,6 +232,16 @@ ipcMain.handle('file:saveAttachment', async (event, filename, lineToWrite, appen
   filtered.push(lineToWrite.trim());
 
   fs.writeFileSync(fullSavePath, filtered.join('\n') + '\n', 'utf-8');
+});
+*/
+
+ipcMain.handle('file:saveAttachment', async (event, relPath, content, isBinary) => {
+  const targetPath = path.join(appPath, relPath);
+  if (isBinary) {
+    await fs.promises.writeFile(targetPath, Buffer.from(content));
+  } else {
+    await fs.promises.writeFile(targetPath, content, 'utf8');
+  }
 });
 
 ipcMain.handle('file:removeLinesContaining', async (event, filePath, search) => {
