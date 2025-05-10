@@ -22,37 +22,142 @@ window.tileRenderer = {
 		const topPos = isVerticalLayout ? (col * 120) : (row * 120);
 		const leftPos = isVerticalLayout ? (row * 140) : (col * 140);
 		const btnClass = isVerticalLayout ? 'vt' : 'hz';
-  
-		// Build indicators HTML
+/*
+		let indicatorsHtml = '<div class="tile-indicators">';
+
+		Object.entries(tileData.rects || {}).forEach(([selector, val], i) => {
+		const id = selector.replace('#', '');
+		const type = id.split('-')[0]; // e.g., mod, ref, link, alt, pres
+		const index = id.match(/\d+/)?.[0] || i + 1;
+
+		const def = {
+			mod: { label: 'M', color: 'blue', useImg: true },
+			ref: { label: 'R', color: 'green', useImg: true },
+			link: { label: 'L', color: 'orange', useImg: false },
+			alt: { label: 'A', color: 'purple', useImg: false },
+			pres: { label: 'P', color: 'teal', useImg: false }
+		}[type];
+
+		if (!def) return;
+
+		const btnId = id;
+		const isDocked = tileData.docked?.[btnId];
+
+		const hoverAttr = !def.useImg
+			? type === 'link' ? `data-hover="gotoSlide: Slide ${val.target || ''}"`
+			: type === 'alt' ? `data-hover="Alternate: ${val.target || ''}"`
+			: type === 'pres' ? `data-hover="Link to presentation: ${val.value || ''}"`
+			: ''
+			: '';
+
+		const imgSrc = tileData.images?.[type + 's']?.[parseInt(index) - 1] || '';
+
+		const circle = `
+			<div class="circle ${def.color}"
+				data-type="${type}" data-index="${index}" data-tileid="${tileId}"
+				${def.useImg ? `data-img="${imgSrc}"` : hoverAttr}>
+			${def.label}${index}
+			</div>`;
+
+		if (isDocked?.startsWith('tab')) {
+			const tabIndex = isDocked.replace('tab', '');
+			$(`#tile-${tileId} .tab-thumb[data-index="${tabIndex}"]`).append(circle);
+		} else {
+			indicatorsHtml += circle;
+		}
+		});
+
+		indicatorsHtml += '</div>';
+  */
 		let indicatorsHtml = '';
-		if (tileData.images?.mods || tileData.images?.refs) {
-		  indicatorsHtml += `<div class="tile-indicators">`;
-  
-		  (tileData.images.mods || []).forEach((mod, i) => {
-			indicatorsHtml += `<div class="circle blue" data-img="${mod}" data-type="mod" data-index="${i + 1}" data-tileid="${tileId}">M${i + 1}</div>`;
-		  });
-  
-		  (tileData.images.refs || []).forEach((ref, i) => {
-			indicatorsHtml += `<div class="circle green" data-img="${ref}" data-type="ref" data-index="${i + 1}" data-tileid="${tileId}">R${i + 1}</div>`;
-		  });
-  
-		  indicatorsHtml += `</div>`;
-		}
-  
-		// Build tab thumbnails HTML
-		let tabThumbsHtml = '';
-		if (tileData.images?.tabs?.length) {
-		  tabThumbsHtml = `<div class="tab-strip">`;
-		  tileData.images.tabs.forEach((tab, i) => {
-			tabThumbsHtml += `
-			  <div class="tab-thumb" data-img="${tab}" data-type="tab" data-index="${i + 1}" data-tileid="${tileId}">
-				<img src="${tab}" />
-				<div class="tab-label">Tab ${i + 1}</div>
-			  </div>`;
-		  });
-		  tabThumbsHtml += `</div>`;
-		}
-  
+const rects = tileData.rects || {};
+const docked = tileData.docked || {};
+const dockedCirclesByTab = {};
+
+//console.log(`🧲 Docked indicators for ${tileId}:`, tileData.docked);
+
+// Helper to push a circle to the tab if docked
+function addDockedCircle(btnId, circleHtml) {
+  const tabId = docked[btnId];
+  if (tabId) {
+    dockedCirclesByTab[tabId] = dockedCirclesByTab[tabId] || [];
+    dockedCirclesByTab[tabId].push(circleHtml);
+  }
+}
+
+// Mod indicators
+const modCircles = (tileData.images.mods || []).map((mod, i) => {
+  const id = `mod-btn${i + 1}`;
+  const circle = `<div class="circle blue" data-img="${mod}" data-type="mod" data-index="${i + 1}" data-tileid="${tileId}">M${i + 1}</div>`;
+  if (docked[id]) {
+    addDockedCircle(id, circle);
+    return '';
+  }
+  return circle;
+}).join('');
+
+// Ref indicators
+const refCircles = (tileData.images.refs || []).map((ref, i) => {
+  const id = `ref-btn${i + 1}`;
+  const circle = `<div class="circle green" data-img="${ref}" data-type="ref" data-index="${i + 1}" data-tileid="${tileId}">R${i + 1}</div>`;
+  if (docked[id]) {
+    addDockedCircle(id, circle);
+    return '';
+  }
+  return circle;
+}).join('');
+
+// Link/Alt/Pres buttons
+const typeDefs = {
+  link: { label: 'L', color: 'orange', prefix: 'link-btn', ext: 'png' },
+  alt:  { label: 'A', color: 'purple', prefix: 'alt-btn', ext: 'png' },
+  pres: { label: 'P', color: 'teal', prefix: 'pres-btn', ext: 'png' }
+};
+
+let extraCircles = '';
+
+Object.entries(typeDefs).forEach(([type, def]) => {
+  Object.keys(rects).filter(sel => sel.startsWith(`#${def.prefix}`)).forEach((sel, i) => {
+    const btnId = `${def.prefix}${i + 1}`;
+    const rect = rects[sel] || {};
+    const hoverAttr = type === 'link'
+      ? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
+      : type === 'pres'
+      ? `data-hover="Link to presentation: ${rect.value || ''}"`
+      : type === 'alt'
+      ? `data-hover="Alternate: ${rect.target || ''}"`
+      : '';
+    const circle = `<div class="circle ${def.color}" ${hoverAttr} data-type="${type}" data-index="${i + 1}" data-tileid="${tileId}">${def.label}${i + 1}</div>`;
+    if (docked[btnId]) {
+      addDockedCircle(btnId, circle);
+    } else {
+      extraCircles += circle;
+    }
+  });
+});
+
+if (modCircles || refCircles || extraCircles) {
+  indicatorsHtml += `<div class="tile-indicators">${modCircles}${refCircles}${extraCircles}</div>`;
+}
+
+// Tab Strip
+let $tabStrip = null;
+if (tileData.images?.tabs?.length) {
+  $tabStrip = $('<div class="tab-strip"></div>');
+  tileData.images.tabs.forEach((tab, i) => {
+    const tabId = `tab${i + 1}`;
+    const dockedCircles = dockedCirclesByTab[tabId]?.join('') || '';
+    $tabStrip.append(`
+      <div class="tab-thumb" data-img="${tab}" data-type="tab" data-index="${i + 1}" data-tileid="${tileId}">
+        <img src="${tab}" />
+        <div class="tab-label">Tab ${i + 1}</div>
+        ${dockedCircles}
+      </div>
+    `);
+    //console.log(`📎 Tab ${tabId} contains ${dockedCirclesByTab[tabId]?.length || 0} docked circles`);
+  });
+}
+		
 		// Determine if this is the last column and bottom tile
 		const isLastColumn = !tileKeys.some((key) => {
 		  const [kCol, kRow] = key.split('_').map(Number);
@@ -88,13 +193,15 @@ window.tileRenderer = {
 			  }
 			${indicatorsHtml}
 			</div>
-			${tabThumbsHtml}
+			
 			${rightBtnHtml}
 			${isBottomTile ? `<div class="tile-btn down-btn ${btnClass}" data-col="${col}"></div>` : ''}
 			<div class="tile-btn del-btn" data-col="${col}" data-row="${row}"></div>
 		  </div>
 		`);
-  
+		if ($tabStrip) {
+			tile.find('.tile-thumbnail').after($tabStrip);
+		  }
 		$container.append(tile);
 	  });
   
@@ -121,9 +228,14 @@ window.tileRenderer = {
   
 	  // Hover preview handlers
 	  $(document).on('mouseenter', '.circle', function (e) {
+		const hoverText = $(this).data('hover');
 		const imgPath = $(this).data('img');
-		if (!imgPath) return;
-		$preview.html(`<img src="${imgPath}" alt="preview">`).show();
+		//if (!imgPath) return;
+		if (hoverText) {
+				$preview.html(`<div class="hover-text">${hoverText}</div>`);
+		  } else if (imgPath) {
+				$preview.html(`<img src="${imgPath}" alt="preview">`).show();
+		  }
 	  });
   
 	  $(document).on('mousemove', '.circle', function (e) {
@@ -138,23 +250,20 @@ window.tileRenderer = {
 	  $(document).on('mouseleave', '.circle', function () {
 		$preview.hide().empty();
 	  });
-	  /*
-	  // Right button handler
-	  $container.off('click', '.right-btn').on('click', '.right-btn', function () {
-		const col = parseInt($(this).data('col'));
-		const newRow = 1;
-		const newTileId = `${col}_${newRow.toString().padStart(2, '0')}`;
-		if (!window.projectData.tiles[newTileId]) {
-		  window.projectData.tiles[newTileId] = {
-			label: `Slide ${col}-${newRow.toString().padStart(2, '0')}`,
-			images: { thumb: '', tabs: [], mods: [], refs: [] },
-			docked: {},
-			rects: {}
-		  };
-		  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
-		}
+
+	  $('.tile-thumbnail').on('drop', async function (e) {
+		e.preventDefault();
+		const file = e.originalEvent.dataTransfer.files[0];
+		if (!file || !file.type.startsWith('image/')) return;
+	  
+		const tileId = $(this).data('tileid');
+		const ext = file.name.split('.').pop();
+		const newFileName = `slide_${tileId}_bg1.${ext}`;
+		await window.electronAPI.saveAttachment(`screens/${newFileName}`, file.path, true);
+	  
+		window.projectData.tiles[tileId].images.thumb = `screens/${newFileName}`;
+		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
 	  });
-	  */
 
 	  $container.off('click', '.right-btn').on('click', '.right-btn', function () {
 		const currentCol = parseInt($(this).data('col'));

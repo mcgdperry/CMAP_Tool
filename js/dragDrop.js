@@ -49,13 +49,13 @@ window.dragDrop = {
 			  tileData.docked[btnId] = tabId;
   
 			  $tab.append($circle[0]);
-			  $circle.css({
+			/*  $circle.css({
 				position: 'relative',
 				top: 'calc(100% - 140px)',
 				left: `${-10 + (index - 1) * 24}px`,
 				transform: 'none',
 				zIndex: 10
-			  });
+			  });*/
   
 			} else {
 			  const $tileThumb = $(`[data-tileid="${tileId}"]`).closest('.tile').find('.tile-thumbnail');

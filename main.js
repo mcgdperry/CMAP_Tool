@@ -235,6 +235,27 @@ ipcMain.handle('file:saveAttachment', async (event, filename, lineToWrite, appen
 });
 */
 
+
+ipcMain.handle('file:copyPlaceholderImage', async (event, destPath) => {
+  const sourcePath = path.join(appPath, 'images', 'placeholder.png');
+  fs.copyFileSync(sourcePath, destPath);
+});
+/*
+ipcMain.handle('file:copyPlaceholderImage', async (_, destPath) => {
+  //console.log('Copying placeholder from:', placeholder, 'to:', destPath);
+  const appDir = getAppDir();
+  const src = path.join(appDir, 'images', 'placeholder.png');
+  const dest = path.join(appDir, destPath);
+  await fs.promises.copyFile(src, dest);
+});
+*/
+ipcMain.handle('file:renameFile', async (_, { oldPath, newPath }) => {
+  const appDir = getAppDir();
+  const src = path.join(appDir, oldPath);
+  const dest = path.join(appDir, newPath);
+  await fs.promises.rename(src, dest);
+});
+
 ipcMain.handle('file:saveAttachment', async (event, relPath, content, isBinary) => {
   const targetPath = path.join(appPath, relPath);
   if (isBinary) {
@@ -291,5 +312,15 @@ ipcMain.handle('folder:deleteScreensFolder', async (event, screensPath) => {
   } catch (err) {
     console.error('Error deleting screens folder:', err);
     return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('file:deleteImage', async (_, filePath) => {
+  try {
+    await fs.promises.unlink(path.join(appPath, filePath));
+    return true;
+  } catch (e) {
+    console.error('Failed to delete image:', e);
+    return false;
   }
 });

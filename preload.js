@@ -15,5 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readRectCSS: (filename) => ipcRenderer.invoke('file:readRectCSS', filename),
   saveRectCSS: (filename, contents) => ipcRenderer.invoke('file:saveRectCSS', filename, contents),
   checkIsDirectory: (fullPath) => ipcRenderer.invoke('check-is-directory', fullPath),
-  getTileAssets: (tileId) => ipcRenderer.invoke('file:getTileAssets', tileId)
+  getTileAssets: (tileId) => ipcRenderer.invoke('file:getTileAssets', tileId),
+  copyPlaceholderImage: (destPath) => ipcRenderer.invoke('file:copyPlaceholderImage', destPath),
+  renameFile: (oldPath, newPath) => ipcRenderer.invoke('file:renameFile', { oldPath, newPath }),
+  deleteImage: (filePath) => ipcRenderer.invoke('file:deleteImage', filePath)
 });

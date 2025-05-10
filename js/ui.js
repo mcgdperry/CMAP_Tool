@@ -18,7 +18,7 @@ window.ui = {
       <textarea id="preview-pane" readonly></textarea>
       <div class="image-editor hidden">
         <div class="editor-header">
-        <div id="editor-info"></div>
+        <div id="editor-bar"></div>
           <button id="closeEditor">✕</button>
           <button id="saveEditor">Save</button>
         </div>
