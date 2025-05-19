@@ -83,13 +83,14 @@ window.editorPanel = {
 			// ✅ Copy images for valid pending rects
 			for (const { selector } of validPending) {
 				if (selector.includes('mod') || selector.includes('ref') || selector.includes('tab')) {
-					const shortId = selector.replace('#', '').replace('-btn', '');
 					const ext = selector.includes('tab') ? '.jpg' : '.png';
-					const imagePath = `screens/slide_${tileId}_${shortId}${ext}`;
-					try {
-						await window.electronAPI.copyPlaceholderImage(imagePath);
-					} catch (err) {
-						console.error('❌ Could not copy placeholder image:', err);
+					const shortId = selector.replace('#', '').replace('-btn', '');
+					let imagePath = `screens/slide_${tileId}_${shortId}${ext}`;
+
+					const exists = await window.electronAPI.fileExists(imagePath);
+					if (!exists) {
+						// Use placeholder image reference without copying
+						imagePath = 'images/placeholder.png';
 					}
 				}
 			}
@@ -100,20 +101,27 @@ window.editorPanel = {
 			
 			// ✅ Delete saved images from deletedRects
 			for (const d of this.deletedRects) {
-				if (d.filename && !validPending.some(p => p.selector === d.selector)) {
-					console.log("trying del here");
-					const shortId = d.selector.replace('#', '').replace('-btn', '');
-					const type = shortId.match(/[a-z]+/)[0];  // 'mod', 'ref', etc.
-					const deletedIndex = parseInt(shortId.match(/\d+/)[0]); // e.g., 3
-					try {
-						delete window.projectData.tiles[d.tileId]?.rects?.[`#${d.type}-btn${d.index}`];
-						await window.electronAPI.deleteImage(`screens/${d.filename}`);
-						delete window.projectData.tiles[this.currentTileId].rects[d.selector];
-						window.projectManager.shiftRectsDown(type, tileId, deletedIndex);
-					} catch (err) {
-						console.warn('Could not delete during save:', d.filename);
+				// Skip if still in pending
+				if (validPending.some(p => p.selector === d.selector)) continue;
+			
+				const shortId = d.selector.replace('#', '').replace('-btn', '');
+				const type = shortId.match(/[a-z]+/)[0];
+				const deletedIndex = parseInt(shortId.match(/\d+/)[0]);
+			
+				// 🔁 Remove rect from JSON
+				delete window.projectData.tiles[d.tileId]?.rects?.[`#${type}-btn${deletedIndex}`];
+			
+				// 🔁 Remove from tile.images if needed
+				if (['mod', 'ref', 'tab'].includes(type)) {
+					const fullPath = `screens/${d.filename}`;
+					const shouldDelete = await window.electronAPI.fileExists(fullPath);
+					if (shouldDelete && !fullPath.includes('placeholder.png')) {
+						await window.electronAPI.deleteImage(fullPath);
 					}
 				}
+			
+				// 🔁 Shift down all button types
+				await window.projectManager.shiftRectsDown(type, tileId, deletedIndex);
 			}
 			
 			this.deletedRects = [];
@@ -250,7 +258,7 @@ window.editorPanel = {
 			const tileId = this.currentTileId;
 			const tile = window.projectData.tiles[tileId];
 			const selectorId = selector.replace('#', '');
-		  
+			
 			// ✅ If deleting a tab, undock anything assigned to it (return to main)
 			if (selectorId.startsWith('tab-btn')) {
 			  const tabNum = selectorId.replace('tab-btn', '');
@@ -264,19 +272,24 @@ window.editorPanel = {
 			  });
 			}
 		  
-			// ✅ If it's a mod/ref/tab (with image), mark for deletion
-			if (['mod', 'ref', 'tab'].some(t => selectorId.startsWith(`${t}-btn`))) {
-			  const type = selectorId.includes('mod') ? 'mod'
-						 : selectorId.includes('ref') ? 'ref'
-						 : 'tab';
-		  
-			  const shortId = selectorId.replace('-btn', '');
-			  const ext = type === 'tab' ? '.jpg' : '.png';
-			  const filename = `slide_${tileId}_${shortId}${ext}`;
-			  const index = parseInt(shortId.replace(type, ''));
-		  
-			  this.deletedRects.push({ selector, type, tileId, index, filename });
-			  this.pendingRects = this.pendingRects.filter(p => p.selector !== selector);
+			// Universal rect deletion
+			const rectType = selectorId.split('-')[0]; // e.g., 'mod', 'ref', 'tab', 'alt', 'link', 'pres'
+			const knownTypes = ['mod', 'ref', 'tab', 'alt', 'link', 'pres'];
+
+			if (knownTypes.includes(rectType)) {
+				const shortId = selectorId.replace('-btn', '');
+				const ext = ['tab', 'mod', 'ref'].includes(rectType) ? (rectType === 'tab' ? '.jpg' : '.png') : null;
+				const filename = ext ? `slide_${tileId}_${shortId}${ext}` : null;
+				const index = parseInt(shortId.replace(rectType, ''));
+
+				// If image-based, add to deletedRects
+				//if (ext) {
+				this.deletedRects.push({ selector, type: rectType, tileId, index, filename });
+				this.pendingRects = this.pendingRects.filter(p => p.selector !== selector);
+				//}
+
+				// Remove from data immediately
+				delete tile.rects[selector];
 			}
 		  
 			if (window.tileRenderer?.showTiles) {
@@ -311,18 +324,56 @@ window.editorPanel = {
 	  window.editorPanel.open({ tileId, rectId: null, imagePath, type: null });
 	},
   
-	handleIndicatorClick(e) {
-	  e.stopPropagation();
-	  const tileId = $(e.currentTarget).data('tileid');
-	  const type = $(e.currentTarget).data('type');
-	  if (['link', 'alt', 'pres'].includes(type)) {
-		return; // Don’t open editor for these types
-	  }
-	  const index = $(e.currentTarget).data('index');
-	  const imagePath = $(e.currentTarget).data('img');
-	  const rectId = `${type}${index}`;
-	  window.editorPanel.open({ tileId, rectId, imagePath, type });
-	},
+	async handleIndicatorClick(e) {
+		e.stopPropagation();
+		const tileId = $(e.currentTarget).data('tileid');
+		const type = $(e.currentTarget).data('type');
+		const imgPath = $(e.currentTarget).data('img');
+		const index = $(e.currentTarget).data('index');
+		const rectId = `${type}${index}`;
+	  
+		if (imgPath?.includes('placeholder')) return;
+		if (['link', 'alt', 'pres'].includes(type)) return;
+	  
+		const shortId = `${type}${index}`;
+		const ext = type === 'tab' ? '.jpg' : '.png';
+		const targetPath = `screens/slide_${tileId}_${shortId}${ext}`;
+		const exists = await window.electronAPI.fileExists(targetPath);
+	  
+		if (!exists) {
+			const file = await window.electronAPI.promptImageUpload();
+			if (file) {
+			  const targetPath = `screens/slide_${tileId}_${shortId}${ext}`;
+			  await window.electronAPI.saveAttachment(targetPath, file.data, true);
+	  
+			// 👇 If uploaded image exceeds current count, bump the count
+			const tile = window.projectData.tiles[tileId];
+			tile.images = tile.images || {};
+	  
+			if (type === 'mod') {
+			  const count = tile.images.modCount || 0;
+			  if (index > count) tile.images.modCount = index;
+			} else if (type === 'ref') {
+			  const count = tile.images.refCount || 0;
+			  if (index > count) tile.images.refCount = index;
+			} else if (type === 'tab') {
+			  const count = tile.images.tabCount || 0;
+			  if (index > count) tile.images.tabCount = index;
+			}
+	  
+			// Re-render layout to show new image
+			if (window.tileRenderer?.showTiles) {
+			  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+			}
+	  
+			// ✅ Now open the editor
+			this.open({ tileId, rectId, imagePath: targetPath, type });
+		  }
+		} else {
+		  // Open as usual if image already exists
+		  this.open({ tileId, rectId, imagePath: imgPath, type });
+		}
+	  },
   
 	open({ tileId, rectId, imagePath, type }) {
 	  this.currentTileId = tileId;

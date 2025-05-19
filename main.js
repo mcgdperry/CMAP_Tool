@@ -324,3 +324,45 @@ ipcMain.handle('file:deleteImage', async (_, filePath) => {
     return false;
   }
 });
+
+ipcMain.handle('dialog:selectFile', async (_, fileType) => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: fileType.toUpperCase(), extensions: [fileType] }]
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.handle('file:readJsonFile', async (_, filePath) => {
+  const content = await fs.promises.readFile(filePath, 'utf-8');
+  return JSON.parse(content);
+});
+
+ipcMain.handle('file:exists', async (_, relativePath) => {
+  const appDir = getAppDir(); // Assuming this already exists in your code
+  const fullPath = path.join(appDir, relativePath);
+  try {
+    await fs.promises.access(fullPath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('dialog:promptImageUpload', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Select an Image',
+    filters: [{ name: 'Images', extensions: ['jpg', 'png'] }],
+    properties: ['openFile']
+  });
+
+  if (result.canceled || !result.filePaths.length) return null;
+
+  const filePath = result.filePaths[0];
+  const buffer = await fs.promises.readFile(filePath);
+
+  return {
+    name: path.basename(filePath),
+    data: Array.from(buffer) // convert to array for serialization
+  };
+});

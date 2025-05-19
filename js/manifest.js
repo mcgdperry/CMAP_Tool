@@ -58,10 +58,26 @@ window.manifest = {
   
 		  window.projectData.tiles[tileId] = {
 			label,
-			images: { thumb: '', tabs: [], mods: [], refs: [] },
+			images: {
+				modCount: tile.images.mods?.length || 0,
+				refCount: tile.images.refs?.length || 0,
+				tabCount: tile.images.tabs?.length || 0
+			  },
 			docked: {},
 			rects: {}
 		  };
+
+		  for (const tileId in projectData.tiles) {
+			const tile = projectData.tiles[tileId];
+			if (tile.images) {
+			  tile.images.modCount = tile.images.mods?.length || 0;
+			  tile.images.refCount = tile.images.refs?.length || 0;
+			  tile.images.tabCount = tile.images.tabs?.length || 0;
+			  delete tile.images.mods;
+			  delete tile.images.refs;
+			  delete tile.images.tabs;
+			}
+		  }
 		});
   
 		// Show tiles

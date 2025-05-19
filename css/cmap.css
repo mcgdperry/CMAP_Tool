@@ -141,7 +141,7 @@ input[type="text"]#inp-brandname {
 /* --- Buttons --- */
 .toolbar-button,
 #gen-btn, #open-btn,
-#switch-btn, #screens-btn,
+#switch-btn, #screens-btn, #import-json,
 #export-json, #export-js, #export-css {
   padding: 10px 20px;
   font-size: 14px;

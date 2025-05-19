@@ -78,62 +78,94 @@ window.projectManager = {
   
   window.projectManager = window.projectManager || {};
 
-	window.projectManager.shiftRectsDown = function (type, tileId, deletedIndex) {
+  window.projectManager.shiftRectsDown = async function (type, tileId, deletedIndex) {
 	const tile = window.projectData.tiles[tileId];
 	if (!tile) return;
-
+  
+	const usesImage = ['mod', 'ref', 'tab'].includes(type);
 	const ext = type === 'tab' ? '.jpg' : '.png';
 	const prefix = `${type}-btn`;
 	const imageKey = type === 'mod' ? 'mods' : type === 'ref' ? 'refs' : 'tabs';
-
+  
 	const updatedRects = {};
 	const updatedImages = [];
-
-	const rectEntries = Object.entries(tile.rects || {});
-	const sorted = rectEntries
-		.filter(([sel]) => sel.startsWith(`#${prefix}`))
-		.sort(([a], [b]) => {
+	const updatedDocked = {};
+  
+	const rectEntries = Object.entries(tile.rects || {})
+	  .filter(([sel]) => sel.startsWith(`#${prefix}`))
+	  .sort(([a], [b]) => {
 		const ai = parseInt(a.match(/\d+/)?.[0]);
 		const bi = parseInt(b.match(/\d+/)?.[0]);
 		return ai - bi;
-		});
-
-	let shiftCount = 1;
-	for (const [selector, rectData] of sorted) {
-		const num = parseInt(selector.match(/\d+/)?.[0]);
-		if (num > deletedIndex) {
-		const newNum = num - 1;
-		const newId = `${prefix}${newNum}`;
-		const newSelector = `#${newId}`;
-
-		// Rename image file
-		const oldPath = `screens/slide_${tileId}_${type}${num}${ext}`;
-		const newPath = `screens/slide_${tileId}_${type}${newNum}${ext}`;
-		window.electronAPI.renameFile(oldPath, newPath);
-
-		// Update image list
-		updatedImages.push(newPath);
-
-		// Update rect data
-		updatedRects[newSelector] = { ...rectData };
-		} else if (num < deletedIndex) {
+	  });
+  
+	for (const [selector, rectData] of rectEntries) {
+	  const num = parseInt(selector.match(/\d+/)?.[0]);
+	  const baseId = selector.replace('#', '');
+  
+	  if (num < deletedIndex) {
 		updatedRects[selector] = rectData;
-		updatedImages.push(`screens/slide_${tileId}_${type}${num}${ext}`);
+		if (usesImage) {
+			updatedImages.push(`screens/slide_${tileId}_${type}${num}${ext}`);
 		}
-		// else (deleted one): skip it
-	}
+		if (tile.docked?.[baseId]) {
+		  updatedDocked[baseId] = tile.docked[baseId];
+		}
+	  } else if (num > deletedIndex) {
+		const newNum = num - 1;
+		const newSelector = `#${prefix}${newNum}`;
+		const newBaseId = `${prefix}${newNum}`;
 
+		if (usesImage) {
+			const oldPath = `screens/slide_${tileId}_${type}${num}${ext}`;
+			const newPath = `screens/slide_${tileId}_${type}${newNum}${ext}`;
+  
+			// Only rename if image exists
+			const exists = await window.electronAPI.fileExists(oldPath);
+			if (exists) {
+		 		await window.electronAPI.renameFile(oldPath, newPath);
+		  		updatedImages.push(newPath);
+			} else {
+		  		updatedImages.push('images/placeholder.png');
+			}
+		}
+  
+		updatedRects[newSelector] = { ...rectData };
+  
+		// 🔁 Also shift docking
+		if (tile.docked?.[baseId]) {
+		  updatedDocked[newBaseId] = tile.docked[baseId];
+		}
+  
+		// 🔁 Update label in editor if DOM element is present
+		const rectEl = document.querySelector(`.rect[data-selector="${selector}"]`);
+		if (rectEl) {
+		  rectEl.dataset.selector = newSelector;
+		  const label = rectEl.querySelector('.rect-label');
+		  if (label) label.innerText = `${tileId} ${newBaseId}\n(${newBaseId})`;
+		}
+	  }
+	  // else — deleted one — skip
+	}
+  
 	tile.rects = {
-		...Object.fromEntries(
+	  ...Object.fromEntries(
 		Object.entries(tile.rects).filter(([sel]) => !sel.startsWith(`#${prefix}`))
-		),
-		...updatedRects
+	  ),
+	  ...updatedRects
 	};
-	tile.images[imageKey] = updatedImages;
 
-	// ✅ Optional: trigger layout re-render
-	if (window.tileRenderer?.showTiles) {
-		window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+	if (usesImage) {
+		tile.images[imageKey] = updatedImages;
 	}
-	
+	tile.docked = {
+	  ...Object.fromEntries(
+		Object.entries(tile.docked || {}).filter(([k]) => !k.startsWith(prefix))
+	  ),
+	  ...updatedDocked
 	};
+  
+	if (window.tileRenderer?.showTiles) {
+	  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+	}
+  };

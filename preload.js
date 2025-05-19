@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectScreensFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   getAppDir: () => ipcRenderer.invoke('app:getAppDir'),
   importScreens: (selectedFolder, appDir) => ipcRenderer.invoke('screens:import', selectedFolder, appDir),
+  readJsonFile: (filePath) => ipcRenderer.invoke('file:readJsonFile', filePath),
+  selectFile: (fileType) => ipcRenderer.invoke('dialog:selectFile', fileType),
   readScreensFolder: () => ipcRenderer.invoke('read-screens-folder'),
   copyFilesToScreens: (fileList, screensFolder) => ipcRenderer.invoke('file:copyFilesToScreens', fileList, screensFolder),
   generateManifest: (fileContent) => ipcRenderer.send('file:saveManifest', fileContent),
@@ -18,5 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTileAssets: (tileId) => ipcRenderer.invoke('file:getTileAssets', tileId),
   copyPlaceholderImage: (destPath) => ipcRenderer.invoke('file:copyPlaceholderImage', destPath),
   renameFile: (oldPath, newPath) => ipcRenderer.invoke('file:renameFile', { oldPath, newPath }),
-  deleteImage: (filePath) => ipcRenderer.invoke('file:deleteImage', filePath)
+  fileExists: (relativePath) => ipcRenderer.invoke('file:exists', relativePath),
+  deleteImage: (filePath) => ipcRenderer.invoke('file:deleteImage', filePath),
+  promptImageUpload: () => ipcRenderer.invoke('dialog:promptImageUpload')
 });

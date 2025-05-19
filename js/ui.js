@@ -11,6 +11,7 @@ window.ui = {
         <button id="open-btn">Open Manifest</button>
         <button id="gen-btn">Generate Manifest</button>
         <button id="switch-btn">Switch Layout</button>
+        <button id="import-json">Import JSON</button>
         <button id="export-json">Export JSON</button>
         <button id="export-js">Export JS</button>
         <button id="export-css">Export CSS</button>
@@ -18,6 +19,17 @@ window.ui = {
       <textarea id="preview-pane" readonly></textarea>
       <div class="image-editor hidden">
         <div class="editor-header">
+        <div class="editor-tools">
+        <label>Scale: <input type="range" id="editor-scale" min="50" max="200" value="100">%</label>
+        <select id="editor-resolution">
+          <option value="1024x768">1024×768</option>
+          <option value="1194x834">1194×834</option>
+          <option value="1366x1024">1366×1024</option>
+          <option value="2048x1536">2048×1536</option>
+        </select>
+        <label><input type="checkbox" id="show-global-rects"> Show Global Rects</label>
+        <label><input type="checkbox" id="show-overlay"> Show Overlays</label>
+      </div>
         <div id="editor-bar"></div>
           <button id="closeEditor">✕</button>
           <button id="saveEditor">Save</button>
@@ -105,23 +117,35 @@ window.ui = {
     });
 
     document.getElementById('export-json').addEventListener('click', async () => {
-      const sortedTiles = Object.keys(window.projectData.tiles)
+      const clonedTiles = JSON.parse(JSON.stringify(window.projectData.tiles));
+
+      // ✅ Simplify image arrays into counts (on the clone)
+      Object.entries(clonedTiles).forEach(([tileId, tileData]) => {
+        const mods = tileData.images?.mods || [];
+        const refs = tileData.images?.refs || [];
+        const tabs = tileData.images?.tabs || [];
+        const thumb = tileData.images?.thumb;
+
+        tileData.images = {
+          modCount: mods.length,
+          refCount: refs.length,
+          tabCount: tabs.length,
+          thumb // Keep the thumb intact so nothing breaks on re-render
+        };
+      });
+
+      const sortedTiles = Object.keys(clonedTiles)
         .sort((a, b) => {
           const [colA, rowA] = a.split('_').map(Number);
           const [colB, rowB] = b.split('_').map(Number);
           return colA - colB || rowA - rowB;
         })
         .reduce((acc, key) => {
-          acc[key] = window.projectData.tiles[key];
+          acc[key] = clonedTiles[key];
           return acc;
         }, {});
-    
-      const sortedProjectData = {
-        ...window.projectData,
-        tiles: sortedTiles
-      };
-    
-      const jsonString = JSON.stringify(sortedProjectData, null, 2);
+
+      const jsonString = JSON.stringify({ ...window.projectData, tiles: sortedTiles }, null, 2);
       await window.electronAPI.saveAttachment('projectData.json', jsonString, false);
       alert('JSON exported!');
     });
@@ -140,6 +164,95 @@ window.ui = {
       }
       alert('JS files exported!');
     });
+
+    $('#import-json').on('click', async () => {
+      try {
+        const filePath = await window.electronAPI.selectFile('json');
+        if (!filePath) return;
+    
+        const jsonContent = await window.electronAPI.readJsonFile(filePath);
+        if (!jsonContent.tiles) {
+          alert('⚠️ Invalid JSON structure — missing "tiles" key.');
+          return;
+        }
+    
+        // 🔁 Convert counts into image paths
+        /*
+        Object.entries(jsonContent.tiles).forEach(([tileId, tileData]) => {
+          tileData.images = tileData.images || {};
+    
+          const modCount = tileData.images.modCount || 0;
+          tileData.images.mods = Array.from({ length: modCount }, (_, i) =>
+            `screens/slide_${tileId}_mod${i + 1}.png`
+          );
+    
+          const refCount = tileData.images.refCount || 0;
+          tileData.images.refs = Array.from({ length: refCount }, (_, i) =>
+            `screens/slide_${tileId}_ref${i + 1}.png`
+          );
+    
+          const tabCount = tileData.images.tabCount || 0;
+          tileData.images.tabs = Array.from({ length: tabCount }, (_, i) =>
+            `screens/slide_${tileId}_tab${i + 1}.jpg`
+          );  
+        });
+        */
+        
+        for (const [tileId, tileData] of Object.entries(jsonContent.tiles)) {
+          tileData.images = tileData.images || {};
+    
+          const modCount = tileData.images.modCount || 0;
+          tileData.images.mods = Array.from({ length: modCount }, (_, i) =>
+            `screens/slide_${tileId}_mod${i + 1}.png`
+          );
+    
+          const refCount = tileData.images.refCount || 0;
+          tileData.images.refs = Array.from({ length: refCount }, (_, i) =>
+            `screens/slide_${tileId}_ref${i + 1}.png`
+          );
+    
+          const tabCount = tileData.images.tabCount || 0;
+          tileData.images.tabs = Array.from({ length: tabCount }, (_, i) =>
+            `screens/slide_${tileId}_tab${i + 1}.jpg`
+          );  
+
+          tileData.images.thumb = `screens/slide_${tileId}_bg1.jpg`;
+
+          const bgExists = await window.electronAPI.fileExists(tileData.images.thumb);
+          if (!bgExists && tabCount > 0) {
+            tileData.images.thumb = `screens/slide_${tileId}_tab1.jpg`;
+          }
+
+          const fallbackExists = await window.electronAPI.fileExists(tileData.images.thumb);
+          if (!fallbackExists) {
+            tileData.images.thumb = 'images/placeholder.png';
+          }
+          const thumbPath = `screens/slide_${tileId}_bg1.jpg`;
+          const hasBg1 = await window.electronAPI.fileExists(thumbPath);
+          const fallback = `screens/slide_${tileId}_tab1.jpg`;
+          const hasFallback = await window.electronAPI.fileExists(fallback);
+          tileData.images.thumb = hasBg1 ? thumbPath : (hasFallback ? fallback : 'images/placeholder.png');
+
+        }
+
+        // ✅ Commit to window.projectData and refresh
+        window.projectData = jsonContent;
+    
+        if (window.tileRenderer?.showTiles) {
+          window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+        }
+    
+        if (window.previewPane?.update) {
+          window.previewPane.update();
+        }
+    
+        alert('✅ JSON imported and layout updated!');
+      } catch (err) {
+        console.error('Error importing JSON:', err);
+        alert('❌ Failed to import JSON.');
+      }
+    });
+    
     
     $('#export-css').on('click', async () => {
       const tiles = window.projectData.tiles;

@@ -3,7 +3,7 @@
 window.tileRenderer = {
 	isVerticalLayout: false,
   
-	showTiles(projectData = window.projectData, isVerticalLayout = false) {
+	async showTiles(projectData = window.projectData, isVerticalLayout = false) {
 	  this.isVerticalLayout = isVerticalLayout;
 	  const $container = $('#tile-cont');
 	  $container.empty();
@@ -15,148 +15,120 @@ window.tileRenderer = {
 	  }
   
 	  const tileKeys = Object.keys(projectData.tiles || {});
-	  tileKeys.forEach((tileId) => {
+	  for (const tileId of tileKeys) {
 		const tileData = projectData.tiles[tileId];
 		const [col, row] = tileId.split('_').map(Number);
 		const formattedRow = row.toString().padStart(2, '0');
 		const topPos = isVerticalLayout ? (col * 120) : (row * 120);
 		const leftPos = isVerticalLayout ? (row * 140) : (col * 140);
 		const btnClass = isVerticalLayout ? 'vt' : 'hz';
-/*
-		let indicatorsHtml = '<div class="tile-indicators">';
 
-		Object.entries(tileData.rects || {}).forEach(([selector, val], i) => {
-		const id = selector.replace('#', '');
-		const type = id.split('-')[0]; // e.g., mod, ref, link, alt, pres
-		const index = id.match(/\d+/)?.[0] || i + 1;
+		let indicatorsHtml = '';
+		const rects = tileData.rects || {};
+		const docked = tileData.docked || {};
+		const dockedCirclesByTab = {};
 
-		const def = {
-			mod: { label: 'M', color: 'blue', useImg: true },
-			ref: { label: 'R', color: 'green', useImg: true },
-			link: { label: 'L', color: 'orange', useImg: false },
-			alt: { label: 'A', color: 'purple', useImg: false },
-			pres: { label: 'P', color: 'teal', useImg: false }
-		}[type];
+		//console.log(`🧲 Docked indicators for ${tileId}:`, tileData.docked);
 
-		if (!def) return;
-
-		const btnId = id;
-		const isDocked = tileData.docked?.[btnId];
-
-		const hoverAttr = !def.useImg
-			? type === 'link' ? `data-hover="gotoSlide: Slide ${val.target || ''}"`
-			: type === 'alt' ? `data-hover="Alternate: ${val.target || ''}"`
-			: type === 'pres' ? `data-hover="Link to presentation: ${val.value || ''}"`
-			: ''
-			: '';
-
-		const imgSrc = tileData.images?.[type + 's']?.[parseInt(index) - 1] || '';
-
-		const circle = `
-			<div class="circle ${def.color}"
-				data-type="${type}" data-index="${index}" data-tileid="${tileId}"
-				${def.useImg ? `data-img="${imgSrc}"` : hoverAttr}>
-			${def.label}${index}
-			</div>`;
-
-		if (isDocked?.startsWith('tab')) {
-			const tabIndex = isDocked.replace('tab', '');
-			$(`#tile-${tileId} .tab-thumb[data-index="${tabIndex}"]`).append(circle);
-		} else {
-			indicatorsHtml += circle;
+		// Helper to push a circle to the tab if docked
+		function addDockedCircle(btnId, circleHtml) {
+			const tabId = docked[btnId];
+			if (tabId) {
+				dockedCirclesByTab[tabId] = dockedCirclesByTab[tabId] || [];
+				dockedCirclesByTab[tabId].push(circleHtml);
+			}
 		}
+
+		// Mod indicators
+		let modCircles = '';
+		const modList = tileData.images.mods || [];
+
+		for (let i = 0; i < modList.length; i++) {
+			const id = `mod-btn${i + 1}`;
+			const imgPath = `screens/slide_${tileId}_mod${i + 1}.png`;
+			const fileExists = await window.electronAPI.fileExists(imgPath);
+			const resolvedPath = fileExists ? imgPath : 'images/placeholder.png';
+
+			const circle = `<div class="circle blue" data-img="${resolvedPath}" data-type="mod" data-index="${i + 1}" data-tileid="${tileId}">M${i + 1}</div>`;
+			if (docked[id]) {
+				addDockedCircle(id, circle);
+			} else {
+				modCircles += circle;
+			}
+		}
+
+		// Ref indicators
+		let refCircles = '';
+		const refList = tileData.images.refs || [];
+
+		for (let i = 0; i < refList.length; i++) {
+			const id = `ref-btn${i + 1}`;
+			const imgPath = `screens/slide_${tileId}_ref${i + 1}.png`;
+			const fileExists = await window.electronAPI.fileExists(imgPath);
+			const resolvedPath = fileExists ? imgPath : 'images/placeholder.png';
+
+			const circle = `<div class="circle green" data-img="${resolvedPath}" data-type="ref" data-index="${i + 1}" data-tileid="${tileId}">R${i + 1}</div>`;
+			if (docked[id]) {
+				addDockedCircle(id, circle);
+			} else {
+				refCircles += circle;
+			}
+		}
+
+		// Link/Alt/Pres buttons
+		const typeDefs = {
+			link: { label: 'L', color: 'orange', prefix: 'link-btn', ext: 'png' },
+			alt:  { label: 'A', color: 'purple', prefix: 'alt-btn', ext: 'png' },
+			pres: { label: 'P', color: 'teal', prefix: 'pres-btn', ext: 'png' }
+		};
+
+		let extraCircles = '';
+
+		Object.entries(typeDefs).forEach(([type, def]) => {
+			Object.keys(rects).filter(sel => sel.startsWith(`#${def.prefix}`)).forEach((sel, i) => {
+				const btnId = `${def.prefix}${i + 1}`;
+				const rect = rects[sel] || {};
+				const hoverAttr = type === 'link'
+				? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
+				: type === 'pres'
+				? `data-hover="Link to presentation: ${rect.value || ''}"`
+				: type === 'alt'
+				? `data-hover="Alternate: ${rect.target || ''}"`
+				: '';
+				const circle = `<div class="circle ${def.color}" ${hoverAttr} data-type="${type}" data-index="${i + 1}" data-tileid="${tileId}">${def.label}${i + 1}</div>`;
+				if (docked[btnId]) {
+					addDockedCircle(btnId, circle);
+				} else {
+					extraCircles += circle;
+				}
+			});
 		});
 
-		indicatorsHtml += '</div>';
-  */
-		let indicatorsHtml = '';
-const rects = tileData.rects || {};
-const docked = tileData.docked || {};
-const dockedCirclesByTab = {};
+		if (modCircles || refCircles || extraCircles) {
+		indicatorsHtml += `<div class="tile-indicators">${modCircles}${refCircles}${extraCircles}</div>`;
+		}
 
-//console.log(`🧲 Docked indicators for ${tileId}:`, tileData.docked);
-
-// Helper to push a circle to the tab if docked
-function addDockedCircle(btnId, circleHtml) {
-  const tabId = docked[btnId];
-  if (tabId) {
-    dockedCirclesByTab[tabId] = dockedCirclesByTab[tabId] || [];
-    dockedCirclesByTab[tabId].push(circleHtml);
-  }
-}
-
-// Mod indicators
-const modCircles = (tileData.images.mods || []).map((mod, i) => {
-  const id = `mod-btn${i + 1}`;
-  const circle = `<div class="circle blue" data-img="${mod}" data-type="mod" data-index="${i + 1}" data-tileid="${tileId}">M${i + 1}</div>`;
-  if (docked[id]) {
-    addDockedCircle(id, circle);
-    return '';
-  }
-  return circle;
-}).join('');
-
-// Ref indicators
-const refCircles = (tileData.images.refs || []).map((ref, i) => {
-  const id = `ref-btn${i + 1}`;
-  const circle = `<div class="circle green" data-img="${ref}" data-type="ref" data-index="${i + 1}" data-tileid="${tileId}">R${i + 1}</div>`;
-  if (docked[id]) {
-    addDockedCircle(id, circle);
-    return '';
-  }
-  return circle;
-}).join('');
-
-// Link/Alt/Pres buttons
-const typeDefs = {
-  link: { label: 'L', color: 'orange', prefix: 'link-btn', ext: 'png' },
-  alt:  { label: 'A', color: 'purple', prefix: 'alt-btn', ext: 'png' },
-  pres: { label: 'P', color: 'teal', prefix: 'pres-btn', ext: 'png' }
-};
-
-let extraCircles = '';
-
-Object.entries(typeDefs).forEach(([type, def]) => {
-  Object.keys(rects).filter(sel => sel.startsWith(`#${def.prefix}`)).forEach((sel, i) => {
-    const btnId = `${def.prefix}${i + 1}`;
-    const rect = rects[sel] || {};
-    const hoverAttr = type === 'link'
-      ? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
-      : type === 'pres'
-      ? `data-hover="Link to presentation: ${rect.value || ''}"`
-      : type === 'alt'
-      ? `data-hover="Alternate: ${rect.target || ''}"`
-      : '';
-    const circle = `<div class="circle ${def.color}" ${hoverAttr} data-type="${type}" data-index="${i + 1}" data-tileid="${tileId}">${def.label}${i + 1}</div>`;
-    if (docked[btnId]) {
-      addDockedCircle(btnId, circle);
-    } else {
-      extraCircles += circle;
-    }
-  });
-});
-
-if (modCircles || refCircles || extraCircles) {
-  indicatorsHtml += `<div class="tile-indicators">${modCircles}${refCircles}${extraCircles}</div>`;
-}
-
-// Tab Strip
-let $tabStrip = null;
-if (tileData.images?.tabs?.length) {
-  $tabStrip = $('<div class="tab-strip"></div>');
-  tileData.images.tabs.forEach((tab, i) => {
-    const tabId = `tab${i + 1}`;
-    const dockedCircles = dockedCirclesByTab[tabId]?.join('') || '';
-    $tabStrip.append(`
-      <div class="tab-thumb" data-img="${tab}" data-type="tab" data-index="${i + 1}" data-tileid="${tileId}">
-        <img src="${tab}" />
-        <div class="tab-label">Tab ${i + 1}</div>
-        ${dockedCircles}
-      </div>
-    `);
-    //console.log(`📎 Tab ${tabId} contains ${dockedCirclesByTab[tabId]?.length || 0} docked circles`);
-  });
-}
+		// Tab Strip
+		let $tabStrip = null;
+		if (tileData.images?.tabs?.length) {
+			$tabStrip = $('<div class="tab-strip"></div>');
+			for (let i = 0; i < tileData.images.tabs.length; i++) {
+				const tabPath = tileData.images.tabs[i];
+				const tabId = `tab${i + 1}`;
+				const dockedCircles = dockedCirclesByTab[tabId]?.join('') || '';
+			  
+				const fileExists = await window.electronAPI.fileExists(tabPath);
+				const displayPath = fileExists ? tabPath : 'images/placeholder.png';
+			  
+				$tabStrip.append(`
+				  <div class="tab-thumb" data-img="${displayPath}" data-type="tab" data-index="${i + 1}" data-tileid="${tileId}">
+					<img src="${displayPath}" onerror="this.src='images/placeholder.png';" />
+					<div class="tab-label">Tab ${i + 1}</div>
+					${dockedCircles}
+				  </div>
+				`);
+			}
+		}
 		
 		// Determine if this is the last column and bottom tile
 		const isLastColumn = !tileKeys.some((key) => {
@@ -183,7 +155,7 @@ if (tileData.images?.tabs?.length) {
 			<input type="text" class="tile-input" value="${tileData.label}" placeholder="${tileId}" />
 			<div class="tile-thumbnail" data-tileid="${tileId}" data-img="${tileData.images?.thumb || ''}">
 			${tileData.images?.thumb
-				? `<img src="${tileData.images.thumb}" alt="thumb" />`
+				? `<img src="${tileData.images.thumb}" alt="thumb" onerror="this.src='images/placeholder.png';" />`
 				: `<div class="placeholder-upload" data-tileid="${tileId}" onclick="event.stopPropagation();">
 					 <label for="upload-${tileId}">
 					   <img src="images/placeholder.png" alt="Upload Slide" />
@@ -203,7 +175,7 @@ if (tileData.images?.tabs?.length) {
 			tile.find('.tile-thumbnail').after($tabStrip);
 		  }
 		$container.append(tile);
-	  });
+	  }
   
 	  // Input change handler
 	  $container.find('.tile-input').on('input', function () {
@@ -224,8 +196,38 @@ if (tileData.images?.tabs?.length) {
   
 	  // Indicator click handlers
 	  $container.find('.tile-thumbnail').on('click', window.editorPanel.handleTileClick);
-	  $container.find('.circle, .tab-thumb').on('click', window.editorPanel.handleIndicatorClick);
-  
+	  //$container.find('.circle, .tab-thumb').on('click', window.editorPanel.handleIndicatorClick);
+	  $('.circle, .tab-thumb').on('click', async function (e) {
+		e.stopPropagation();
+		const $el = $(this);
+		const imgPath = $el.data('img');
+		const tileId = $el.data('tileid');
+		const type = $el.data('type');
+		const index = $el.data('index');
+
+		const isPlaceholder = imgPath?.includes('placeholder');
+		if (['mod', 'ref', 'tab'].includes(type) && isPlaceholder) {
+			const shortId = `${type}${index}`;
+			const ext = type === 'tab' ? '.jpg' : '.png';
+			const targetPath = `screens/slide_${tileId}_${shortId}${ext}`;
+
+			const file = await window.electronAPI.promptImageUpload();
+			if (file) {
+			await window.electronAPI.saveAttachment(targetPath, file.data, true);
+
+			// 👇 Refresh layout and open editor only after success
+			window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+			setTimeout(() => {
+				window.editorPanel.open({ tileId, rectId: shortId, imagePath: targetPath, type });
+			}, 300);
+			}
+
+			return; // Stop early, don't proceed to editor
+		}
+
+		// 👉 Only open editor if valid
+		window.editorPanel.handleIndicatorClick(e);
+	  });
 	  // Hover preview handlers
 	  $(document).on('mouseenter', '.circle', function (e) {
 		const hoverText = $(this).data('hover');
@@ -233,9 +235,12 @@ if (tileData.images?.tabs?.length) {
 		//if (!imgPath) return;
 		if (hoverText) {
 				$preview.html(`<div class="hover-text">${hoverText}</div>`);
-		  } else if (imgPath) {
-				$preview.html(`<img src="${imgPath}" alt="preview">`).show();
-		  }
+			} else if (imgPath) {
+				const img = new Image();
+				img.onload = () => $preview.html(`<img src="${imgPath}" alt="preview">`);
+				img.onerror = () => $preview.html(`<img src="images/placeholder.png" alt="preview">`);
+				img.src = imgPath;
+			}
 	  });
   
 	  $(document).on('mousemove', '.circle', function (e) {
