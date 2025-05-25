@@ -1,76 +1,5 @@
-/**
- * Global CSS File
-
-@font-face {
-	font-family: 'rale-xbd';
-	src: url('../fonts/Raleway-ExtraBold.ttf');
-}
-
-@font-face {
-	font-family: 'rale-bd';
-	src: url('../fonts/Raleway-Bold.ttf');
-}
-
-@font-face {
-	font-family: 'rale-reg';
-	src: url('../fonts/Raleway-Regular.ttf');
-}
-
-@font-face {
-	font-family: 'rale-med';
-	src: url('../fonts/Raleway-Medium.ttf');
-}
-
-* {
-  -webkit-touch-callout: none; 
-  -webkit-user-select: none; 
-}
-
-*/
-
-
 /*
-@media only screen 
-  and (min-width: 1080px) 
-  and (orientation: landscape) 
-  and (-webkit-min-device-pixel-ratio: 2) {
-	  body {
-		-webkit-transform-origin: top left;
-		-webkit-transform: scale(1.054);
-	  }
-}
-
-@media only screen 
-  and (min-width: 1112px) 
-  and (orientation: landscape) 
-  and (-webkit-min-device-pixel-ratio: 2) {
-	  body {
-		-webkit-transform-origin: top left;
-		-webkit-transform: scale(1.086);
-	  }
-}
-
-@media only screen 
-  and (min-width: 1194px) 
-  and (orientation: landscape) 
-  and (-webkit-min-device-pixel-ratio: 2) {
-	  body {
-		-webkit-transform-origin: top left;
-		-webkit-transform: scale(1.086);
-		
-		-webkit-transform: translateX(41px) scale(1.086);
-	  }
-}
-
-@media only screen 
-  and (min-width: 1366px) 
-  and (orientation: landscape) 
-  and (-webkit-min-device-pixel-ratio: 2) {
-	body {
-		-webkit-transform-origin: top left;
-		-webkit-transform: scale(1.334);
-	  }
-}
+ * Global CSS File
 */
 
 * {
@@ -142,7 +71,7 @@ input[type="text"]#inp-brandname {
 .toolbar-button,
 #gen-btn, #open-btn,
 #switch-btn, #screens-btn, #import-json,
-#export-json, #export-js, #export-css {
+#export-json, #export-js, #export-css, #export-veeva {
   padding: 10px 20px;
   font-size: 14px;
   font-weight: bold;
@@ -158,8 +87,8 @@ input[type="text"]#inp-brandname {
 
 .toolbar-button:hover,
 #gen-btn:hover, #open-btn:hover,
-#switch-btn:hover, #screens-btn:hover,
-#export-json:hover, #export-js:hover, #export-css:hover {
+#switch-btn:hover, #screens-btn:hover, #import-json:hover,
+#export-json:hover, #export-js:hover, #export-css:hover, #export-veeva:hover {
   background: linear-gradient(135deg, #42a5f5, #1e88e5);
   transform: scale(1.03);
 }
@@ -642,25 +571,7 @@ input[type="text"]#inp-brandname {
     display: none;
   }
   
-  .editor-header {
-    display: flex;
-    justify-content: flex-end;
-    padding: 10px;
-    gap: 10px;
-  }
-  
-  .editor-canvas {
-    flex: 1;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .editor-image {
-    max-width: 90%;
-    max-height: 90%;
-  }
+ 
   
   .rect {
     position: absolute;
@@ -731,6 +642,55 @@ input[type="text"]#inp-brandname {
   opacity: 0;
   cursor: pointer;
 }
+/*
+.editor-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+  gap: 10px;
+}
+
+.editor-canvas {
+  flex: 1;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+*/
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px;
+  background: #222;
+  color: #fff;
+  border-bottom: 1px solid #444;
+}
+
+.editor-canvas {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-right: 230px; /* make space for side panel */
+}
+
+.editor-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.editor-header button {
+  margin-left: 10px;
+}
+.editor-image {
+  max-width: 90%;
+  max-height: 90%;
+}
 
 #editor-info {
   position: absolute;
@@ -754,13 +714,89 @@ input[type="text"]#inp-brandname {
   cursor: pointer;
   font-size: 12px;
 }
+.rect.selected {
+  box-shadow: 0 0 8px 2px rgba(0, 150, 255, 0.6);
+  animation: pulseBorder 1.2s infinite;
+  z-index: 5;
+}
+
+@keyframes pulseBorder {
+  0% { box-shadow: 0 0 6px rgba(0, 150, 255, 0.6); }
+  50% { box-shadow: 0 0 0 12px rgba(0, 150, 255, 1); }
+  100% { box-shadow: 0 0 6px rgba(0, 150, 255, 0.6); }
+}
+
+/* === Inspector Panel (Right Side Column) === */
+#editor-inspector-panel {
+  position: absolute;
+  right: 200;
+  top: 60px;
+  width: 230px;
+  background: #f4f4f4;
+  border-left: 1px solid #ccc;
+  padding: 12px;
+  z-index: 20;
+  font-size: 13px;
+}
+
+#editor-inspector-panel h4 {
+  margin-top: 0;
+  font-size: 14px;
+}
+
+#editor-inspector-panel label {
+  display: block;
+  margin: 6px 0 4px;
+}
+
+#editor-inspector-panel input {
+  width: 100%;
+  padding: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+/* === Legend Panel (Floating Bottom Left) === */
+#editor-legend-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  font-size: 13px;
+  max-width: 260px;
+  z-index: 999;
+}
+
+#editor-legend-panel h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+#editor-legend-panel ul {
+  padding-left: 16px;
+  margin: 0;
+  list-style-type: none;
+}
+
+#editor-legend-panel li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+#editor-legend-panel .circle {
+  margin-right: 8px;
+}
 
 .rect-meta {
   margin-top: 4px;
   width: 90%;
   font-size: 12px;
 }
-
 
 .rect-delete {
   position: absolute;
@@ -788,3 +824,10 @@ input[type="text"]#inp-brandname {
   text-align: center;
 }
 
+#rect-inspector input {
+  margin-bottom: 6px;
+  padding: 4px;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}

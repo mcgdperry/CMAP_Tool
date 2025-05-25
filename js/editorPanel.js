@@ -291,7 +291,9 @@ window.editorPanel = {
 				// Remove from data immediately
 				delete tile.rects[selector];
 			}
-		  
+
+			window.rectInspector.bindToRect(rect);
+
 			if (window.tileRenderer?.showTiles) {
 			  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
 			}
@@ -311,9 +313,14 @@ window.editorPanel = {
 			document.getElementById('editorRectsContainer')?.appendChild(header);
 		}
 
+		
 
 		rect.appendChild(del);
-	
+		
+		rect.addEventListener('click', (e) => {
+			e.stopPropagation();
+			window.rectInspector.bindToRect(rect);
+		});
 		window.makeDraggableResizable(rect);
 		return rect;
 	  },

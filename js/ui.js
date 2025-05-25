@@ -1,7 +1,8 @@
 window.ui = {
   setup: function () {
     $('#bg1').append(`
-      <input type="text" id="inp-brandname" maxlength="30" name="brandname" placeholder="Name of brand">
+      <input type="text" id="inp-brandname" maxlength="30" name="brandname" placeholder="Name of brand/IVA">
+      <input type="text" id="inp-product" maxlength="30" name="product" placeholder="Product Name">
       <div id="zoom-controls">
         <label>Scale: <input type="range" id="scale-slider" min="50" max="150" value="100">%</label>
         <label><input type="checkbox" id="zoom-to-fit"> Zoom to Fit</label>
@@ -15,29 +16,61 @@ window.ui = {
         <button id="export-json">Export JSON</button>
         <button id="export-js">Export JS</button>
         <button id="export-css">Export CSS</button>
+        <button id="export-veeva">Export Veeva</button>
       </div>
       <textarea id="preview-pane" readonly></textarea>
+
       <div class="image-editor hidden">
-        <div class="editor-header">
-        <div class="editor-tools">
-        <label>Scale: <input type="range" id="editor-scale" min="50" max="200" value="100">%</label>
-        <select id="editor-resolution">
-          <option value="1024x768">1024×768</option>
-          <option value="1194x834">1194×834</option>
-          <option value="1366x1024">1366×1024</option>
-          <option value="2048x1536">2048×1536</option>
-        </select>
-        <label><input type="checkbox" id="show-global-rects"> Show Global Rects</label>
-        <label><input type="checkbox" id="show-overlay"> Show Overlays</label>
-      </div>
-        <div id="editor-bar"></div>
-          <button id="closeEditor">✕</button>
-          <button id="saveEditor">Save</button>
-        </div>
-        <div class="editor-canvas">
-          <img id="editorImage" src="" class="editor-image" />
-          <div id="editorRectsContainer"></div>
-        </div>
+          <div class="editor-header">
+              <div class="editor-tools">
+                <label>Scale: <input type="range" id="editor-scale" min="50" max="200" value="100">%</label>
+                <select id="editor-resolution">
+                  <option value="1024x768">1024×768</option>
+                  <option value="1194x834">1194×834</option>
+                  <option value="1366x1024">1366×1024</option>
+                  <option value="2048x1536">2048×1536</option>
+                </select>
+                <label><input type="checkbox" id="show-global-rects"> Show Global Rects</label>
+                <label><input type="checkbox" id="show-overlay"> Show Overlays</label>
+                <label><input type="checkbox" id="show-guide-layer"> Show Guide Layer</label>
+                <label><input type="checkbox" id="show-tablet-frame"> Show Frame</label>
+              </div>
+              <div id="editor-bar"></div>
+              <button id="closeEditor">✕</button>
+              <button id="saveEditor">Save</button>
+          </div>
+          
+          <div class="editor-canvas">
+            <div id="editor-inspector-panel" class="side-panel">
+              <h4>Rect Inspector</h4>
+              <label>Top: <input type="number" id="rect-top" /></label>
+              <label>Left: <input type="number" id="rect-left" /></label>
+              <label>Width: <input type="number" id="rect-width" /></label>
+              <label>Height: <input type="number" id="rect-height" /></label>
+              <label>Value: <input type="text" id="rect-value" /></label>
+              <label>Target: <input type="text" id="rect-target" /></label>
+            </div>
+            <div id="editor-legend-panel" class="side-panel">
+              <h4>Legend / Color Scheme</h4>
+              <div><span class="circle blue"></span> Mod</div>
+              <div><span class="circle green"></span> Ref</div>
+              <div><span class="circle orange"></span> Link</div>
+              <div><span class="circle purple"></span> Alt</div>
+              <div><span class="circle teal"></span> Pres</div>
+              <hr />
+              <label>Color Scheme:
+                <select id="color-scheme">
+                  <option value="default">Default</option>
+                  <option value="ocean">Ocean</option>
+                  <option value="sunset">Sunset</option>
+                </select>
+              </label>
+            </div>
+            <img id="editorImage" src="" class="editor-image" />
+            <div id="editorRectsContainer"></div>
+            <div id="globalRectsContainer" style="pointer-events: none;"></div>
+          </div>
+          
       </div>
       <div id="map-scroll">
         <div id="tile-cont"></div>
@@ -117,6 +150,12 @@ window.ui = {
     });
 
     document.getElementById('export-json').addEventListener('click', async () => {
+      const brand = document.getElementById('inp-brandname')?.value?.trim();
+      if (!brand) {
+        alert('Enter a brand/IVA name first');
+        return;
+      }
+      
       const clonedTiles = JSON.parse(JSON.stringify(window.projectData.tiles));
 
       // ✅ Simplify image arrays into counts (on the clone)
@@ -145,9 +184,19 @@ window.ui = {
           return acc;
         }, {});
 
-      const jsonString = JSON.stringify({ ...window.projectData, tiles: sortedTiles }, null, 2);
-      await window.electronAPI.saveAttachment('projectData.json', jsonString, false);
-      alert('JSON exported!');
+      const jsonString = JSON.stringify({
+        ...window.projectData,                                 // existing project-level data
+        brandname: document.getElementById('inp-brandname')?.value || '', // updated brand input
+        Product: document.getElementById('inp-product')?.value || '',     // updated product input
+        tiles: sortedTiles                                     // sorted tile data
+      }, null, 2);
+
+      const filePath = `${brand}_projectData.json`;
+      await window.electronAPI.saveAttachment(filePath, jsonString, false);
+      alert(`Saved: ${filePath}`);
+      //await window.electronAPI.saveAttachment('projectData.json', jsonString, false);
+      //alert('JSON exported!');
+      
     });
 
     $('#export-js').on('click', async () => {
@@ -163,6 +212,10 @@ window.ui = {
         }
       }
       alert('JS files exported!');
+    });
+
+    document.getElementById('export-veeva')?.addEventListener('click', () => {
+      window.veevaExporter.export();
     });
 
     $('#import-json').on('click', async () => {
@@ -237,6 +290,10 @@ window.ui = {
 
         // ✅ Commit to window.projectData and refresh
         window.projectData = jsonContent;
+
+        document.getElementById('inp-brandname').value = jsonContent.brandname || '';
+        document.getElementById('inp-product').value = jsonContent.Product || '';
+
     
         if (window.tileRenderer?.showTiles) {
           window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
@@ -310,7 +367,11 @@ window.ui = {
     }
   
     $('#tile-cont').empty();
-    window.projectData = { tiles: {} }; // 🔥 Clear and reset
+    window.projectData = {
+      brandname: '',
+      Product: '',
+      tiles: {}
+    }; // 🔥 Clear and reset
   
     const cacheBuster = Date.now();
     const assetsByTile = {};

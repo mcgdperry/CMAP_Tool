@@ -1,14 +1,22 @@
 window.manifest = {
 	generateText() {
 	  const brand = $('#inp-brandname').val().trim() || 'Brand';
-	  const tileArr = window.projectManager.getTileArr();
+	  const tileGrid = window.projectManager.getTileGrid(); // ✅ use new helper
+
+		return tileGrid.map((column, colIndex) =>
+			column.map((tileId, rowIndex) => {
+			const label = window.projectData.tiles[tileId]?.label?.trim() || `Slide ${colIndex}-${rowIndex + 1}`;
+			return `${brand}_${tileId}|${label}`;
+			}).join('\n')
+		).join('\n');
+	  /*const tileArr = window.projectManager.getTileArr();
   
 	  return tileArr.map((column, colIndex) =>
 		column.map((tileId, rowIndex) => {
 		  const label = window.projectData.tiles[tileId]?.label?.trim() || `Slide ${colIndex}-${rowIndex + 1}`;
 		  return `${brand}_${tileId}|${label}`;
 		}).join('\n')
-	  ).join('\n');
+	  ).join('\n');*/
 	},
   
 	updatePreview() {

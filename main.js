@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
+const archiver = require('archiver');
 
 const appPath = app.getAppPath();
 
@@ -199,56 +201,14 @@ ipcMain.handle('file:readAttachment', async (event, filename) => {
     return ''; // ✅ Return empty so the renderer doesn't crash
   }
   return fs.readFileSync(filePath, 'utf-8');
-  /*
-  try {
-    const filePath = path.join(getAppDir(), filename);
-    return fs.readFileSync(filePath, 'utf-8');
-  } catch (err) {
-    throw new Error(`Unable to read ${filename}: ${err.message}`);
-  }
-  */
 });
-/*
-ipcMain.handle('file:saveAttachment', async (event, filename, lineToWrite, append = false) => {
-  const appDir = isDev ? app.getAppPath() : path.dirname(app.getPath('exe'));
-  const fullSavePath = path.join(appDir, filename);
-
-  if (typeof lineToWrite !== 'string') {
-    console.error('Invalid lineToWrite (must be string):', lineToWrite);
-    throw new Error('saveAttachment: lineToWrite must be a string');
-  }
-
-  const folder = path.dirname(fullSavePath);
-  if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-
-  let existingLines = [];
-  if (fs.existsSync(fullSavePath)) {
-    const content = fs.readFileSync(fullSavePath, 'utf-8');
-    existingLines = content.split('\n').filter(line => line.trim());
-  }
-
-  const btnId = (lineToWrite.match(/\$\('#(.+?)'\)/) || [])[1];
-  const filtered = existingLines.filter(line => !line.includes(`$('#${btnId}')`));
-  filtered.push(lineToWrite.trim());
-
-  fs.writeFileSync(fullSavePath, filtered.join('\n') + '\n', 'utf-8');
-});
-*/
 
 
 ipcMain.handle('file:copyPlaceholderImage', async (event, destPath) => {
   const sourcePath = path.join(appPath, 'images', 'placeholder.png');
   fs.copyFileSync(sourcePath, destPath);
 });
-/*
-ipcMain.handle('file:copyPlaceholderImage', async (_, destPath) => {
-  //console.log('Copying placeholder from:', placeholder, 'to:', destPath);
-  const appDir = getAppDir();
-  const src = path.join(appDir, 'images', 'placeholder.png');
-  const dest = path.join(appDir, destPath);
-  await fs.promises.copyFile(src, dest);
-});
-*/
+
 ipcMain.handle('file:renameFile', async (_, { oldPath, newPath }) => {
   const appDir = getAppDir();
   const src = path.join(appDir, oldPath);
@@ -256,8 +216,10 @@ ipcMain.handle('file:renameFile', async (_, { oldPath, newPath }) => {
   await fs.promises.rename(src, dest);
 });
 
-ipcMain.handle('file:saveAttachment', async (event, relPath, content, isBinary) => {
-  const targetPath = path.join(appPath, relPath);
+ipcMain.handle('file:saveAttachment', async (event, relOrFullPath, content, isBinary) => {
+  const isAbsolute = path.isAbsolute(relOrFullPath);
+  const targetPath = isAbsolute ? relOrFullPath : path.join(appPath, relOrFullPath);
+
   if (isBinary) {
     await fs.promises.writeFile(targetPath, Buffer.from(content));
   } else {
@@ -331,6 +293,57 @@ ipcMain.handle('dialog:selectFile', async (_, fileType) => {
     filters: [{ name: fileType.toUpperCase(), extensions: [fileType] }]
   });
   return result.canceled ? null : result.filePaths[0];
+});
+
+// 🔹 Return screens folder path
+/*
+ipcMain.handle('file:getScreensDir', () => {
+  return path.join(app.getAppPath(), 'screens');
+});
+
+// 🔹 Check if file exists
+ipcMain.handle('file:fileExists', async (event, filePath) => {
+  return fs.existsSync(filePath);
+});
+*/
+
+// 🔹 Create folder (if it doesn't exist)
+ipcMain.handle('file:makeDir', async (event, dirPath) => {
+  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+  return true;
+});
+
+// 🔹 Copy file
+ipcMain.handle('file:copyFile', async (event, source, target) => {
+  fs.copyFileSync(source, target);
+  return true;
+});
+
+// 🔹 Delete file
+ipcMain.handle('file:deleteFile', async (event, filePath) => {
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  return true;
+});
+
+// 🔹 Resize image using sharp
+ipcMain.handle('file:resizeImage', async (event, source, target, width, height) => {
+  await sharp(source).resize(width, height).toFile(target);
+  return true;
+});
+
+// 🔹 Zip a folder
+ipcMain.handle('file:zipFolder', async (event, folderPath, zipPath) => {
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => resolve(true));
+    archive.on('error', err => reject(err));
+
+    archive.pipe(output);
+    archive.directory(folderPath, false);
+    archive.finalize();
+  });
 });
 
 ipcMain.handle('file:readJsonFile', async (_, filePath) => {

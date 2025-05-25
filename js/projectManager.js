@@ -13,7 +13,20 @@ window.projectManager = {
 	  
 		return tileArr;
 	  },
-  
+	  
+	  getTileGrid() {
+		const tileGrid = [];
+
+		Object.keys(projectData.tiles || {}).forEach(tileId => {
+			const [col, row] = tileId.split('_').map(Number);
+			const rowIndex = row - 1;
+
+			if (!tileGrid[col]) tileGrid[col] = [];
+			tileGrid[col][rowIndex] = tileId;
+		});
+
+		return tileGrid;
+		},
 	// 🔧 Helper: Return all indicators (mods, refs, tabs) for a tileId
 	getTileIndicators(tileId) {
 	  const t = window.projectData.tiles?.[tileId];
