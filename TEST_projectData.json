@@ -1,0 +1,487 @@
+{
+  "brandname": "TEST",
+  "Product": "testProduct",
+  "tiles": {
+    "0_01": {
+      "label": "Slide 0-01",
+      "images": {
+        "modCount": 4,
+        "refCount": 5,
+        "tabCount": 7,
+        "thumb": "screens/slide_0_01_tab1.jpg"
+      },
+      "docked": {
+        "mod-btn3": "tab2",
+        "ref-btn3": "tab3"
+      },
+      "rects": {
+        "#mod-btn1": {
+          "top": 100,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#mod-btn2": {
+          "top": 100,
+          "left": 150,
+          "width": 100,
+          "height": 60
+        },
+        "#mod-btn3": {
+          "top": 360,
+          "left": 469,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn1": {
+          "top": 300,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn2": {
+          "top": 300,
+          "left": 150,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn3": {
+          "top": 300,
+          "left": 200,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn1": {
+          "top": 500,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn2": {
+          "top": 500,
+          "left": 150,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn3": {
+          "top": 500,
+          "left": 200,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn4": {
+          "top": 500,
+          "left": 250,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn5": {
+          "top": 660,
+          "left": 300,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn6": {
+          "top": 740,
+          "left": 400,
+          "width": 100,
+          "height": 60
+        },
+        "#tab-btn7": {
+          "top": 820,
+          "left": 500,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn4": {
+          "top": 420,
+          "left": 250,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn5": {
+          "top": 500,
+          "left": 350,
+          "width": 100,
+          "height": 60
+        },
+        "#mod-btn4": {
+          "top": 220,
+          "left": 250,
+          "width": 100,
+          "height": 60
+        }
+      }
+    },
+    "1_01": {
+      "label": "Slide 1-01",
+      "images": {
+        "modCount": 0,
+        "refCount": 1,
+        "tabCount": 0,
+        "thumb": "screens/slide_1_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "1_02": {
+      "label": "Slide 1-02",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_1_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "1_03": {
+      "label": "Slide 1-03",
+      "images": {
+        "modCount": 2,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_1_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "2_01": {
+      "label": "Slide 2-01",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_2_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "2_02": {
+      "label": "Slide 2-02",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_2_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "2_03": {
+      "label": "Slide 2-03",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_2_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "2_04": {
+      "label": "Slide 2-04",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_2_04_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "2_05": {
+      "label": "Slide 2-05",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_2_05_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "3_01": {
+      "label": "Slide 3-01",
+      "images": {
+        "modCount": 2,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_3_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "3_02": {
+      "label": "Slide 3-02",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_3_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "3_03": {
+      "label": "Slide 3-03",
+      "images": {
+        "modCount": 5,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_3_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "3_04": {
+      "label": "Slide 3-04",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_3_04_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "3_05": {
+      "label": "Slide 3-05",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_3_05_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "4_01": {
+      "label": "Slide 4-01",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_4_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "4_02": {
+      "label": "Slide 4-02",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_4_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "4_03": {
+      "label": "Slide 4-03",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_4_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "4_04": {
+      "label": "Slide 4-04",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_4_04_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "4_05": {
+      "label": "Slide 4-05",
+      "images": {
+        "modCount": 2,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_4_05_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "5_01": {
+      "label": "Slide 5-01",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_5_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "5_02": {
+      "label": "Slide 5-02",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_5_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "5_03": {
+      "label": "Slide 5-03",
+      "images": {
+        "modCount": 2,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_5_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "5_04": {
+      "label": "Slide 5-04",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_5_04_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "6_01": {
+      "label": "Slide 6-01",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_6_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "6_02": {
+      "label": "Slide 6-02",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_6_02_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "6_03": {
+      "label": "Slide 6-03",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_6_03_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "6_04": {
+      "label": "Slide 6-04",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_6_04_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "6_05": {
+      "label": "Slide 6-05",
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_6_05_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "7_01": {
+      "label": "Slide 7-01",
+      "images": {
+        "modCount": 1,
+        "refCount": 0,
+        "tabCount": 6,
+        "thumb": "screens/slide_7_01_tab1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "8_01": {
+      "label": "Slide 8-01",
+      "images": {
+        "modCount": 11,
+        "refCount": 0,
+        "tabCount": 0,
+        "thumb": "screens/slide_8_01_bg1.jpg"
+      },
+      "docked": {},
+      "rects": {}
+    },
+    "global": {
+      "rects": {
+        ".mod-btn": {
+          "top": 100,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#mod-btn2": {
+          "top": 140,
+          "left": 140,
+          "width": 100,
+          "height": 60
+        },
+        ".ref-btn": {
+          "top": 100,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn2": {
+          "top": 140,
+          "left": 140,
+          "width": 100,
+          "height": 60
+        },
+        "#ref-btn3": {
+          "top": 160,
+          "left": 160,
+          "width": 100,
+          "height": 60
+        },
+        ".alt-btn": {
+          "top": 100,
+          "left": 100,
+          "width": 100,
+          "height": 60
+        },
+        "#alt-btn2": {
+          "top": 140,
+          "left": 140,
+          "width": 100,
+          "height": 60
+        }
+      },
+      "images": {
+        "modCount": 0,
+        "refCount": 0,
+        "tabCount": 0
+      }
+    }
+  }
+}

@@ -25,7 +25,7 @@ window.previewPane = {
 	  $('#toggle-preview-btn').on('click', function () {
 		const content = $('#manifest-preview-content');
 		content.slideToggle(200);
-		$(this).text(content.is(':visible') ? 'Hide' : 'Show');
+		$('#manifest-preview-content').text(content.is(':visible') ? 'Hide' : 'Show');
 	  });
   
 	  // Sync brand name on input

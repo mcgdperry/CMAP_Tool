@@ -432,6 +432,8 @@ input[type="text"]#inp-brandname {
 .circle.orange { background: #ff8c00; }
 .circle.purple { background: #800080; }
 .circle.teal { background: #00cec9; }
+.circle.pdf { background: #ff0080; }
+.circle.black { background: #222; color: #fff; }
 
 .circle.dragging {
   box-shadow: 0 8px 16px rgba(0,0,0,0.3);
@@ -579,9 +581,38 @@ input[type="text"]#inp-brandname {
     cursor: move;
     background-color: rgba(255, 0, 0, 0.2);
   }
+  /*
+#globalRectsContainer
+{
 
+
+}
+*/
 .rect-label {
     color: #ffffff;
+    font-weight: bold;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 4px #222, 0 0px 1px #fff;
+    background: transparent;
+    padding: 2px 6px;
+    border-radius: 6px;
+    margin: 2px 0;
+}
+#globalRectsContainer .rect {
+  background: rgba(255,255,255,0.7) !important;
+  border: 2px dashed #222 !important;
+}
+#globalRectsContainer .rect-label {
+  color: #111 !important;
+  background: rgba(255,255,255,0.5) !important;
+  text-shadow: 0 1px 4px #fff, 0 0px 1px #fff !important;
+  font-weight: bold;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin: 2px 0;
 }
 /*
 .tab-strip::after {
@@ -642,22 +673,6 @@ input[type="text"]#inp-brandname {
   opacity: 0;
   cursor: pointer;
 }
-/*
-.editor-header {
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px;
-  gap: 10px;
-}
-
-.editor-canvas {
-  flex: 1;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-*/
 
 .editor-header {
   display: flex;
@@ -695,7 +710,7 @@ input[type="text"]#inp-brandname {
 #editor-info {
   position: absolute;
   top: 10px;
-    left: 1210px;
+    left: 1000px;
     width: 270px;
   justify-content: space-between;
   align-items: center;
@@ -729,8 +744,8 @@ input[type="text"]#inp-brandname {
 /* === Inspector Panel (Right Side Column) === */
 #editor-inspector-panel {
   position: absolute;
-  right: 200;
-  top: 60px;
+  right: 300px;
+  top: 500px;
   width: 230px;
   background: #f4f4f4;
   border-left: 1px solid #ccc;
@@ -830,4 +845,225 @@ input[type="text"]#inp-brandname {
   font-size: 12px;
   width: 100%;
   box-sizing: border-box;
+}
+
+.editor-buttons.global-mode button {
+  background-color: #333;
+  color: white;
+  border: 1px solid white;
+}
+.editor-buttons.global-mode button:hover {
+  background-color: #555;
+}
+
+.tile-row.globals {
+	margin-top: 30px;
+	border-top: 2px dashed #ccc;
+	padding-top: 10px;
+}
+
+.global-indicator-bar {
+	display: flex;
+	gap: 12px;
+	padding: 10px;
+}
+
+.global-indicator {
+	padding: 6px 10px;
+	background: #444;
+	color: white;
+	border-radius: 6px;
+	font-size: 12px;
+}
+
+#globalRectsContainer {
+  pointer-events: auto !important;
+}
+
+.rect-meta.pdf-select-btn {
+  background: #ff0080;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rect-meta.pdf-select-btn:hover {
+  background: #d6006e;
+}
+.rect-meta.vid-select-btn {
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rect-meta.vid-select-btn:hover {
+  background: #444;
+}
+
+.editor-panel-draggable {
+  position: fixed;
+  top: 120px;
+  left: 60vw;
+  min-width: 320px;
+  max-width: 400px;
+  background: #f8fafd;
+  border: 2px solid #2196f3;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  z-index: 1001;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+#editor-panel-header {
+  background: #2196f3;
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 12px 12px 0 0;
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  letter-spacing: 0.5px;
+}
+#editor-panel-header button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  margin-left: 10px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+#editor-panel-header button:hover {
+  background: #1565c0;
+}
+#editor-panel-content {
+  padding: 10px 14px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#editor-rect-controls {
+  margin-bottom: 8px;
+}
+.rect-type-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rect-type-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.rect-type-btn {
+  width: 60px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  background: #0984e3;
+  color: #fff;
+  cursor: pointer;
+  margin-left: 2px;
+  margin-right: 8px;
+  transition: background 0.2s;
+}
+.rect-type-btn:hover {
+  background: #1565c0;
+}
+.rect-type-btn.fancy-btn {
+  background: linear-gradient(90deg, #42a5f5 0%, #64b5f6 100%);
+  color: #fff;
+  border: none;
+  border-radius: 18px;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 4px 18px;
+  margin: 2px 0 2px 2px;
+  box-shadow: 0 2px 8px rgba(66,165,245,0.08);
+  letter-spacing: 0.5px;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+}
+.rect-type-btn.fancy-btn:hover {
+  background: linear-gradient(90deg, #1976d2 0%, #42a5f5 100%);
+  box-shadow: 0 4px 16px rgba(66,165,245,0.18);
+  transform: translateY(-2px) scale(1.04);
+}
+#editor-rect-controls h4 {
+  font-size: 13px;
+  margin: 6px 0 4px 0;
+  font-weight: bold;
+  color: #1565c0;
+}
+#editor-rect-controls label {
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+.editor-meta {
+  font-size: 12px;
+  color: #333;
+  background: #f3f7fb;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.editor-meta label {
+  font-size: 12px;
+  margin-top: 2px;
+}
+#editor-inspector-panel {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 4px 0;
+  position: static;
+  width: auto;
+  font-size: 12px;
+}
+#editor-inspector-panel h4 {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #1565c0;
+}
+#editor-inspector-panel label {
+  font-size: 11px;
+  margin-bottom: 2px;
+  color: #444;
+}
+#editor-inspector-panel input {
+  width: 90%;
+  font-size: 11px;
+  padding: 2px 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+  border: 1px solid #b0c4de;
+  background: #f8fafc;
+}
+.insp-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#rect-name {
+  font-size: 12px;
+  color: #1976d2;
+  margin-bottom: 4px;
+  font-weight: bold;
+  letter-spacing: 0.2px;
 }

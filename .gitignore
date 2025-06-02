@@ -1,4 +1,6 @@
 .DS_Store
+/pdfs
+/vids
 /CMAP Generator-darwin-x64
 /screens
 /node_modules

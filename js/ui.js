@@ -7,6 +7,7 @@ window.ui = {
         <label>Scale: <input type="range" id="scale-slider" min="50" max="150" value="100">%</label>
         <label><input type="checkbox" id="zoom-to-fit"> Zoom to Fit</label>
       </div>
+
       <div id="toolbar">
         <button id="screens-btn">Import Screens</button>
         <button id="open-btn">Open Manifest</button>
@@ -22,55 +23,93 @@ window.ui = {
 
       <div class="image-editor hidden">
           <div class="editor-header">
-              <div class="editor-tools">
-                <label>Scale: <input type="range" id="editor-scale" min="50" max="200" value="100">%</label>
-                <select id="editor-resolution">
-                  <option value="1024x768">1024×768</option>
-                  <option value="1194x834">1194×834</option>
-                  <option value="1366x1024">1366×1024</option>
-                  <option value="2048x1536">2048×1536</option>
-                </select>
-                <label><input type="checkbox" id="show-global-rects"> Show Global Rects</label>
-                <label><input type="checkbox" id="show-overlay"> Show Overlays</label>
-                <label><input type="checkbox" id="show-guide-layer"> Show Guide Layer</label>
-                <label><input type="checkbox" id="show-tablet-frame"> Show Frame</label>
-              </div>
-              <div id="editor-bar"></div>
+            <div class="editor-tools">
+              <label>Scale: <input type="range" id="editor-scale" min="50" max="200" value="100">%</label>
+              <select id="editor-resolution">
+                <option value="1024x768">1024×768</option>
+                <option value="1194x834">1194×834</option>
+                <option value="1366x1024">1366×1024</option>
+                <option value="2048x1536">2048×1536</option>
+              </select>
+              <label><input type="checkbox" id="show-overlay"> Show Overlays</label>
+              <label><input type="checkbox" id="show-guide-layer"> Show Guide Layer</label>
+              <label><input type="checkbox" id="show-tablet-frame"> Show Frame</label>
+            </div>
+          </div>
+          <div id="editor-panel" class="editor-panel-draggable">
+            <div id="editor-panel-header">
+              <span>Rect Editor</span>
               <button id="closeEditor">✕</button>
               <button id="saveEditor">Save</button>
+            </div>
+            <div id="editor-panel-content">
+              <div id="editor-rect-controls">
+                <label style="margin-bottom:8px;display:block;">
+                  <input type="checkbox" id="show-global-rects" style="margin-right:6px;"> Show Global Rects
+                </label>
+                <h4 style="margin:6px 0 4px 0;font-size:13px;">Show/Hide & Add</h4>
+                <div class="rect-type-toggles">
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="mod" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-mod-btn" class="rect-type-btn fancy-btn">+ Mod</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="ref" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-ref-btn" class="rect-type-btn fancy-btn">+ Ref</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="tab" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-tab-btn" class="rect-type-btn fancy-btn">+ Tab</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="link" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-link-btn" class="rect-type-btn fancy-btn">+ Link</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="alt" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-alt-btn" class="rect-type-btn fancy-btn">+ Alt</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="pres" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-pres-btn" class="rect-type-btn fancy-btn">+ Pres</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="pdf" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-pdf-btn" class="rect-type-btn fancy-btn">+ PDF</button>
+                  </div>
+                  <div class="rect-type-row">
+                    <input type="checkbox" class="rect-type-toggle" data-type="vid" checked style="width:16px;height:16px;margin-right:4px;">
+                    <button id="add-vid-btn" class="rect-type-btn fancy-btn">+ Vid</button>
+                  </div>
+                </div>
+              </div>
+              <div class="editor-meta" style="margin-top:10px;">
+                <strong>Tile ID:</strong> <span id="meta-tile-id"></span><br />
+                <strong>Image:</strong> <span id="meta-image"></span><br />
+                <strong>Rects:</strong> <span id="meta-rect-count"></span><br />
+                <label style="font-size:12px;">Title: <input type="text" id="meta-tile-label" style="width:60%;font-size:12px;" /></label>
+              </div>
+              <div id="editor-inspector-panel" class="side-panel" style="margin-top:10px;">
+                <h4 style="font-size:13px;margin-bottom:6px;">Rect Inspector</h4>
+                <div id="rect-name" style="font-size:12px;margin-bottom:4px;"></div>
+                <div class="insp-fields" style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <label style="width:24%;font-size:11px;">Top:<input type="number" id="rect-top" style="width:90%;font-size:11px;" /></label>
+                  <label style="width:24%;font-size:11px;">Left:<input type="number" id="rect-left" style="width:90%;font-size:11px;" /></label>
+                  <label style="width:24%;font-size:11px;">Width:<input type="number" id="rect-width" style="width:90%;font-size:11px;" /></label>
+                  <label style="width:24%;font-size:11px;">Height:<input type="number" id="rect-height" style="width:90%;font-size:11px;" /></label>
+                </div>
+                <div class="insp-fields" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+                  <label style="width:48%;font-size:11px;">Value:<input type="text" id="rect-value" style="width:90%;font-size:11px;" /></label>
+                  <label style="width:48%;font-size:11px;">Target:<input type="text" id="rect-target" style="width:90%;font-size:11px;" /></label>
+                </div>
+              </div>
+            </div>
           </div>
-          
           <div class="editor-canvas">
-            <div id="editor-inspector-panel" class="side-panel">
-              <h4>Rect Inspector</h4>
-              <label>Top: <input type="number" id="rect-top" /></label>
-              <label>Left: <input type="number" id="rect-left" /></label>
-              <label>Width: <input type="number" id="rect-width" /></label>
-              <label>Height: <input type="number" id="rect-height" /></label>
-              <label>Value: <input type="text" id="rect-value" /></label>
-              <label>Target: <input type="text" id="rect-target" /></label>
-            </div>
-            <div id="editor-legend-panel" class="side-panel">
-              <h4>Legend / Color Scheme</h4>
-              <div><span class="circle blue"></span> Mod</div>
-              <div><span class="circle green"></span> Ref</div>
-              <div><span class="circle orange"></span> Link</div>
-              <div><span class="circle purple"></span> Alt</div>
-              <div><span class="circle teal"></span> Pres</div>
-              <hr />
-              <label>Color Scheme:
-                <select id="color-scheme">
-                  <option value="default">Default</option>
-                  <option value="ocean">Ocean</option>
-                  <option value="sunset">Sunset</option>
-                </select>
-              </label>
-            </div>
             <img id="editorImage" src="" class="editor-image" />
             <div id="editorRectsContainer"></div>
             <div id="globalRectsContainer" style="pointer-events: none;"></div>
           </div>
-          
       </div>
       <div id="map-scroll">
         <div id="tile-cont"></div>
@@ -446,4 +485,60 @@ window.ui = {
     }, 2000);
   }
 };
+
+// Make editor panel draggable
+(function() {
+  // Wait until DOM is ready and panel exists
+  $(document).on('mousedown', '#editor-panel-header', function(e) {
+    const panel = document.getElementById('editor-panel');
+    if (!panel) return;
+    let offsetX = e.clientX - panel.offsetLeft;
+    let offsetY = e.clientY - panel.offsetTop;
+    let isDragging = true;
+    document.body.style.userSelect = 'none';
+
+    function onMouseMove(ev) {
+      if (!isDragging) return;
+      panel.style.left = `${ev.clientX - offsetX}px`;
+      panel.style.top = `${ev.clientY - offsetY}px`;
+    }
+    function onMouseUp() {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+})();
+
+// Rect type toggle logic (works for both global and non-global mode)
+$(document).on('change', '.rect-type-toggle', function() {
+  const type = $(this).data('type');
+  const checked = $(this).is(':checked');
+  // Toggle in both containers
+  $('#editorRectsContainer .rect, #globalRectsContainer .rect').each(function() {
+    const sel = $(this).data('selector') || '';
+    if (sel.includes(`${type}-btn`)) {
+      $(this).toggle(checked);
+    }
+  });
+});
+
+// Restore: Show Global Rects checkbox toggles global mode
+$(document).off('change', '#show-global-rects').on('change', '#show-global-rects', function() {
+  const checked = $(this).is(':checked');
+  window.editorPanel.setGlobalMode(checked);
+});
+
+// --- Show Global Rects logic: hide per-tile rects, show only global rects when checked ---
+$(document).off('change', '#show-global-rects').on('change', '#show-global-rects', function() {
+  const checked = $(this).is(':checked');
+  // Hide/show per-tile rects and global rects containers
+  $('#editorRectsContainer').toggle(!checked);
+  $('#globalRectsContainer').toggle(checked);
+  // Optionally, update editorPanel mode for correct logic
+  window.editorPanel.setGlobalMode(checked);
+});
 

@@ -14,11 +14,38 @@ window.rectInspector = {
 
 		const input = rect.querySelector('input');
 		const select = rect.querySelector('select');
+		const pdfSpan = rect.querySelector('.pdf-filename');
+		const vidSpan = rect.querySelector('.vid-filename');
 
-		$('#rect-value').val(input?.value || '').off().on('input', e => { if (input) input.value = e.target.value; });
+		let value = '';
+		if (input) value = input.value;
+		else if (pdfSpan) value = pdfSpan.dataset.filename || '';
+		else if (vidSpan) value = vidSpan.dataset.filename || '';
+
+		$('#rect-value').val(value).off().on('input', e => {
+			if (input) input.value = e.target.value;
+		});
 		$('#rect-target').val(select?.value || '').off().on('input', e => { if (select) select.value = e.target.value; });
 	},
 
+	updateInspectorForRectType(selector) {
+		const isLink = selector.includes('link');
+		const isAlt = selector.includes('alt');
+		const isPres = selector.includes('pres');
+
+		$('#inspector-target-row').toggle(isLink || isAlt);
+		$('#inspector-value-row').toggle(isPres);
+
+		if (isLink || isAlt) {
+			const val = $(`#${selector.replace('#', '')} select.rect-meta`).val();
+			$('#inspector-target').val(val || '');
+		}
+
+		if (isPres) {
+			const val = $(`#${selector.replace('#', '')} input.rect-meta`).val();
+			$('#inspector-value').val(val || '');
+		}
+	},
 
 
 	_bindInspectorEvents() {
@@ -47,6 +74,25 @@ window.rectInspector = {
 	}
 };
 
+function updateInspectorForRectType(selector) {
+  const isLink = selector.includes('link');
+  const isAlt = selector.includes('alt');
+  const isPres = selector.includes('pres');
+
+  $('#inspector-target-row').toggle(isLink || isAlt);
+  $('#inspector-value-row').toggle(isPres);
+
+  if (isLink || isAlt) {
+    const target = $(`#${selector.replace('#', '')} select.rect-meta`).val();
+    $('#inspector-target').val(target || '');
+  }
+
+  if (isPres) {
+    const value = $(`#${selector.replace('#', '')} input.rect-meta`).val();
+    $('#inspector-value').val(value || '');
+  }
+}
+/*
 _selectRect = function (rectEl) {
   // Deselect all others
   document.querySelectorAll('.rect.selected').forEach(el => el.classList.remove('selected'));
@@ -71,3 +117,4 @@ _selectRect = function (rectEl) {
   const input = rectEl.querySelector('input');
   fields.value.value = input ? input.value : '';
 };
+*/

@@ -26,22 +26,8 @@ window.veevaExporter = {
     for (const tileId in tiles) {
       const tile = tiles[tileId];
       const folderName = `${brandname}_IVA_${tileId}`;
-      //const tilePath = path.join(exportDir, folderName);
       const tilePath = `${exportDir}/${folderName}`;
       await this._setupTileFolders(tilePath);
-/*
-      const allScreenFiles = await window.electronAPI.readScreensFolder();
-      if (allScreenFiles?.files?.length) {
-        const regex = new RegExp(`^slide_${tileId}_.+\\.(jpg|png)$`, 'i');
-
-        for (const file of allScreenFiles.files) {
-          if (regex.test(file)) {
-            const src = `${appDir}/screens/${file}`;
-            const dest = `${tilePath}/images/${file}`;
-            await window.electronAPI.copyFile(src, dest);
-          }
-        }
-      }*/
 
       const allKeys = Object.keys(tile.rects || {});
       for (const sel of allKeys) {
@@ -105,6 +91,25 @@ window.veevaExporter = {
       const html = this._generateHTML(brandname, tileId, tile);
       await window.electronAPI.saveAttachment(`${tilePath}/${folderName}.html`, html, false);
       //await window.electronAPI.saveAttachment(path.join(tilePath, `${folderName}.html`), html, false);
+
+      // --- PDF Export: Copy PDFs and preserve pdfN attributes ---
+      const appDir = await window.electronAPI.getAppDir();
+      const pdfsDir = `${appDir}/pdfs`;
+      const exportPdfsDir = `${tilePath}/pdfs`;
+      await window.electronAPI.makeDir(exportPdfsDir);
+
+      Object.keys(tile)
+        .filter(k => /^pdf\d+$/.test(k))
+        .forEach(async pdfKey => {
+          const fileName = tile[pdfKey];
+          if (!fileName) return;
+          const src = `${pdfsDir}/${fileName}`;
+          const dest = `${exportPdfsDir}/${fileName}`;
+          const exists = await window.electronAPI.fileExists(src);
+          if (exists) {
+            await window.electronAPI.copyFile(src, dest);
+          }
+        });
     }
 
     alert('✔ Veeva export complete!');

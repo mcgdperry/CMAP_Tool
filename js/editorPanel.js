@@ -1,230 +1,493 @@
 // editorPanel.js — updated to fix unsaved rect persistence, tab mode bleed-through, and rect prepopulation from images
 
-
 window.editorPanel = {
-	currentTileId: null,
-	currentRectId: null,
-	currentMode: 'main',
-	pendingRects: [],
-	deletedRects: [],
-  
-	init() {  
-		const closeBtn = document.getElementById('closeEditor');
-		const saveBtn = document.getElementById('saveEditor');
-	
-		closeBtn.addEventListener('click', () => {
-		  document.querySelector('.image-editor').classList.add('hidden');
-		  this.pendingRects = []; // Clear unsaved rects
-		  this.deletedRects = []; // Clear unsaved deletions
-		});
-	
-		saveBtn.addEventListener('click', async () => {
-		  const tileId = this.currentTileId;
-		  const mode = this.currentMode;
-		  const rects = document.querySelectorAll('#editorRectsContainer .rect');
-		  const output = {};
-	
-		  rects.forEach(rect => {
-			const sel = rect.dataset.selector;
-			output[sel] = {
-			  top: Math.round(parseFloat(rect.style.top || '0')),
-			  left: Math.round(parseFloat(rect.style.left || '0')),
-			  width: Math.round(parseFloat(rect.style.width || '100')),
-			  height: Math.round(parseFloat(rect.style.height || '60'))
-			};
-			const input = rect.querySelector('input');
-			const select = rect.querySelector('select');
-			if (input) output[sel].value = input.value;
-			if (select) output[sel].target = select.value;
-		  });
-	
-		  const tile = window.projectData.tiles[tileId];
-		  if (!tile) return;
-		  tile.rects = tile.rects || {};
+    currentTileId: null,
+    currentRectId: null,
+    currentMode: 'main',
+    pendingRects: [],
+    deletedRects: [],
 
-			for (const [sel, data] of Object.entries(output)) {
-			// Detect if this is a tab slide (e.g., #mod-btn3 docked to tab2)
-			const dockedTo = Object.entries(tile.docked || {}).find(
-				([btnId, tabId]) => `#${btnId}` === sel && tabId === this.currentRectId
-			);
+    init() {
+        document.getElementById('show-global-rects')?.addEventListener('change', (e) => {
+            const globalMode = e.target.checked;
+            window.editorPanel.setGlobalMode(globalMode);
+        });
 
-			// If saving from tab view, only save tab-docked rects
-			if (this.currentMode === 'tab') {
-				if (!dockedTo) continue; // Skip anything not docked to this tab
-			} else {
-				// Main tile view: skip anything docked to a tab
-				if (tile.docked?.[sel.replace('#', '')]) continue;
-			}
+        const closeBtn = document.getElementById('closeEditor');
+        const saveBtn = document.getElementById('saveEditor');
 
-			// Merge and save
-			tile.rects[sel] = {
-				...tile.rects[sel],
-				...data
-			};
-			}
-	
-		  if (!tile.docked) tile.docked = {};
-			Object.keys(output).forEach(selector => {
-				if (selector.includes('tab-btn') || selector.includes('mod-btn') || selector.includes('ref-btn')) {
-					const dockedTo = tile.docked[selector];
-					if (dockedTo && dockedTo.startsWith('tab')) {
-						tile.docked[selector] = dockedTo; // Preserve docking
-					}
-				}
-			});
+        ['mod', 'ref', 'tab', 'link', 'alt', 'pres', 'pdf', 'vid'].forEach(type => {
+            document.getElementById(`add-${type}-btn`)?.addEventListener('click', () => {
+                this.addEditorRect(type);
+            });
+        });
 
+        closeBtn.addEventListener('click', () => {
+            // Reset to main mode and hide editor
+            this.setGlobalMode(false);
+            document.querySelector('.image-editor').classList.add('hidden');
+            this.pendingRects = []; // Clear unsaved rectangles
+            this.deletedRects = []; // Clear unsaved deletions
+            // --- Only clear unsaved (not saved) global rects and remove from DOM if in global mode ---
+            if (this.currentMode === 'global' || document.getElementById('show-global-rects')?.checked) {
+                this.unsavedGlobalRects = {};
+                // Remove only unsaved global rects from DOM, not the saved ones
+                const globalRects = document.getElementById('globalRectsContainer');
+                if (globalRects) {
+                    // Remove only rects that are not in projectData.tiles.global.rects
+                    const saved = window.projectData.tiles.global?.rects || {};
+                    Array.from(globalRects.querySelectorAll('.rect')).forEach(rect => {
+                        const sel = rect.dataset.selector;
+                        if (!saved[sel]) rect.remove();
+                    });
+                }
+                // Reset counters for global rects
+                this.globalTypeCounters = {};
+                this.globalOtherCounters = {};
+            }
+        });
 
-		  
-		  // ✅ First: handle only valid pending rects
-			const validPending = this.pendingRects.filter(p =>
-				!this.deletedRects.some(d => d.selector === p.selector)
-			);
-			
-			// ✅ Copy images for valid pending rects
-			for (const { selector } of validPending) {
-				if (selector.includes('mod') || selector.includes('ref') || selector.includes('tab')) {
-					const ext = selector.includes('tab') ? '.jpg' : '.png';
-					const shortId = selector.replace('#', '').replace('-btn', '');
-					let imagePath = `screens/slide_${tileId}_${shortId}${ext}`;
+        saveBtn.addEventListener('click', async () => {
+            const tileId = this.currentTileId;
+            const mode = this.currentMode;
 
-					const exists = await window.electronAPI.fileExists(imagePath);
-					if (!exists) {
-						// Use placeholder image reference without copying
-						imagePath = 'images/placeholder.png';
-					}
-				}
-			}
-			
-			// ✅ Clean arrays *after* operations complete
-			this.pendingRects = [];
-			
-			
-			// ✅ Delete saved images from deletedRects
-			for (const d of this.deletedRects) {
-				// Skip if still in pending
-				if (validPending.some(p => p.selector === d.selector)) continue;
-			
-				const shortId = d.selector.replace('#', '').replace('-btn', '');
-				const type = shortId.match(/[a-z]+/)[0];
-				const deletedIndex = parseInt(shortId.match(/\d+/)[0]);
-			
-				// 🔁 Remove rect from JSON
-				delete window.projectData.tiles[d.tileId]?.rects?.[`#${type}-btn${deletedIndex}`];
-			
-				// 🔁 Remove from tile.images if needed
-				if (['mod', 'ref', 'tab'].includes(type)) {
-					const fullPath = `screens/${d.filename}`;
-					const shouldDelete = await window.electronAPI.fileExists(fullPath);
-					if (shouldDelete && !fullPath.includes('placeholder.png')) {
-						await window.electronAPI.deleteImage(fullPath);
-					}
-				}
-			
-				// 🔁 Shift down all button types
-				await window.projectManager.shiftRectsDown(type, tileId, deletedIndex);
-			}
-			
-			this.deletedRects = [];
+            if (!this.processRects(tileId, mode)) return;
 
+            await this.handlePendingRects(tileId);
+            await this.handleDeletedRects(tileId);
 
-		  alert('✔ Rectangles saved to projectData!');
-		  //console.log('💾 Saved rects:', output);
-		  document.querySelector('.image-editor').classList.add('hidden');
-	
-		 
-		  	if (window.tileRenderer?.showTiles) {
-				window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
-			}
-		});
-	  },
-	
-	  async addEditorRect(type) {
-		const tileId = this.currentTileId;
-		const tile = window.projectData.tiles[tileId];
-		const container = document.getElementById('editorRectsContainer');
-	
-		const existing = [
-			...Object.keys(tile.rects || {}),
-			...this.pendingRects.map(r => r.selector)
-		  ].filter(k => k.includes(`${type}-btn`));
-		const numbers = existing.map(k => parseInt(k.match(/\d+/)?.[0])).filter(n => !isNaN(n));
-		const nextIndex = numbers.length ? Math.max(...numbers) + 1 : 1;
-		const id = `${type}-btn${nextIndex}`;
-		const selector = `#${id}`;
-		  
-		const color = typeDefs[type]?.color || 'rgba(200,200,200,0.3)';
-		const baseTop = typeDefs[type]?.baseTop || 100;
-		const groupIndex = this.groupIndexMap[type] || 0;
-		this.groupIndexMap[type] = groupIndex + 1;
+            alert('✔ Rectangles saved to projectData!');
+            document.querySelector('.image-editor').classList.add('hidden');
+            this.setGlobalMode(false);
 
-		  
-		// Create rectangle
-		const rect = this._createRect(id, selector, color, groupIndex, baseTop, '');
-		const meta = {};
-		if (type === 'link' || type === 'alt') meta.target = '';
-		if (type === 'pres') meta.value = '';
-	
-		this.pendingRects.push({ selector, rect, meta, type });
+            if (mode === 'global') {
+                this.saveGlobalRectData();
+                return;
+            }
 
-		if (['mod', 'ref', 'tab'].includes(type)) {
-			const shortId = selector.replace('#', '').replace('-btn', '');
-			const ext = type === 'tab' ? '.jpg' : '.png';
-			const imagePath = `screens/slide_${tileId}_${shortId}${ext}`;
-			const key = type === 'mod' ? 'mods' : type === 'ref' ? 'refs' : 'tabs';
-			tile.images[key] = tile.images[key] || [];
-			tile.images[key].push(imagePath);
-		}
+            if (window.tileRenderer?.showTiles) {
+                window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+            }
+        });
+    },
 
-		if (meta.target !== undefined) {
-		  const select = document.createElement('select');
-		  select.className = 'rect-meta';
-		  select.innerHTML = '<option value="">Select</option>';
-	
-		  if (type === 'link') {
-			Object.keys(window.projectData.tiles).filter(id => id !== tileId).forEach(id => {
-			  select.innerHTML += `<option value="${id}">${id}</option>`;
-			});
-		  }
-	
-		  if (type === 'alt') {
-			Object.keys(tile.rects).filter(k => !k.includes('alt-btn')).forEach(sel => {
-			  select.innerHTML += `<option value="${sel}">${sel}</option>`;
-			});
-		  }
-	
-		  select.onchange = () => meta.target = select.value;
-		  rect.appendChild(select);
-		}
-	
-		if (meta.value !== undefined) {
-		  const input = document.createElement('input');
-		  input.className = 'rect-meta';
-		  input.placeholder = 'Enter value';
-		  input.oninput = () => meta.value = input.value;
-		  rect.appendChild(input);
-		}
-	
-		container.appendChild(rect);
-		
-		const countOfThisType = existing.length;
-		const topOffset = baseTop + countOfThisType * 40;
-		const leftOffset = 100 + countOfThisType * 50;
+    processRects(tileId, mode) {
+        const rects = document.querySelectorAll('#editorRectsContainer .rect');
+        const output = this.extractRectData(rects);
+        const tile = window.projectData.tiles[tileId];
 
-		this._applyStyle(rect, selector, {
-			[selector]: {
-				top: topOffset,
-				left: leftOffset,
-				width: 100,
-				height: 60
-			}
-		});
-		
-		//took out here tilty
+        if (!tile) return false;
 
-		window.makeDraggableResizable(rect);
-	  },
-	
-	  _applyStyle(rect, selector, styles) {
+        tile.rects = tile.rects || {};
+        this.updateTileRects(output, tile, mode);
+        this.preserveDockingInformation(output, tile);
+
+        return true;
+    },
+
+    extractRectData(rects) {
+        const output = {};
+        rects.forEach(rect => {
+            const sel = rect.dataset.selector;
+            output[sel] = {
+                top: Math.round(parseFloat(rect.style.top || '0')),
+                left: Math.round(parseFloat(rect.style.left || '0')),
+                width: Math.round(parseFloat(rect.style.width || '100')),
+                height: Math.round(parseFloat(rect.style.height || '60'))
+            };
+            const input = rect.querySelector('input');
+            const select = rect.querySelector('select');
+            if (input && input.type !== 'file') output[sel].value = input.value;
+            if (select) output[sel].target = select.value;
+            // PDF: store filename if present
+            const pdfBtn = rect.querySelector('.pdf-filename');
+            if (pdfBtn) output[sel].pdf = pdfBtn.dataset.filename || '';
+            // VID: store filename if present
+            const vidBtn = rect.querySelector('.vid-filename');
+            if (vidBtn) output[sel].vid = vidBtn.dataset.filename || '';
+        });
+        return output;
+    },
+
+    updateTileRects(output, tile, mode) {
+        for (const [sel, data] of Object.entries(output)) {
+            const dockedTo = Object.entries(tile.docked || {}).find(
+                ([btnId, tabId]) => `#${btnId}` === sel && tabId === this.currentRectId
+            );
+
+            if (mode === 'tab' ? !dockedTo : tile.docked?.[sel.replace('#', '')]) continue;
+
+            tile.rects[sel] = {
+                ...tile.rects[sel],
+                ...data
+            };
+            // PDF: store pdfN attribute if present
+            if (sel.startsWith('#pdf-btn') && data.pdf) {
+                const pdfNum = sel.match(/\d+/)?.[0];
+                if (pdfNum) tile[`pdf${pdfNum}`] = data.pdf;
+            }
+            // VID: store vidN attribute if present
+            if (sel.startsWith('#vid-btn') && data.vid) {
+                const vidNum = sel.match(/\d+/)?.[0];
+                if (vidNum) tile[`vid${vidNum}`] = data.vid;
+            }
+        }
+    },
+
+    preserveDockingInformation(output, tile) {
+        if (!tile.docked) tile.docked = {};
+        Object.keys(output).forEach(selector => {
+            if (selector.includes('tab-btn') || selector.includes('mod-btn') || selector.includes('ref-btn')) {
+                const dockedTo = tile.docked[selector];
+                if (dockedTo && dockedTo.startsWith('tab')) {
+                    tile.docked[selector] = dockedTo; 
+                }
+            }
+        });
+    },
+
+    async handlePendingRects(tileId) {
+        if (tileId === 'global') {
+            console.log('ℹ️ Skipping handlePendingRects for global mode');
+            this.pendingRects = [];
+            return;
+        }
+
+        const tile = window.projectData.tiles?.[tileId];
+        if (!tile || !tile.images) {
+            console.warn(`⚠️ Missing or invalid tile/images for tileId: ${tileId}`);
+            this.pendingRects = [];
+            return;
+        }
+
+        const validPending = this.pendingRects.filter(p =>
+            !this.deletedRects.some(d => d.selector === p.selector)
+        );
+
+        for (const { selector, imagePath, type } of validPending) {
+            if (['mod', 'ref', 'tab'].includes(type) && imagePath) {
+                const key = type === 'mod' ? 'mods' : type === 'ref' ? 'refs' : 'tabs';
+                tile.images[key] = tile.images[key] || [];
+                if (!tile.images[key].includes(imagePath)) {
+                    tile.images[key].push(imagePath);
+                }
+            }
+        }
+
+        this.pendingRects = [];
+    },
+
+    async handleDeletedRects(tileId) {
+        for (const d of this.deletedRects) {
+            if (validPending.some(p => p.selector === d.selector)) continue;
+
+            const shortId = d.selector.replace('#', '').replace('-btn', '');
+            const type = shortId.match(/[a-z]+/)[0];
+            const deletedIndex = parseInt(shortId.match(/\d+/)[0]);
+
+            delete window.projectData.tiles[d.tileId]?.rects?.[`#${type}-btn${deletedIndex}`];
+
+            if (['mod', 'ref', 'tab'].includes(type)) {
+                const fullPath = `screens/${d.filename}`;
+                const shouldDelete = await window.electronAPI.fileExists(fullPath);
+                if (shouldDelete && !fullPath.includes('placeholder.png')) {
+                    await window.electronAPI.deleteImage(fullPath);
+                }
+            }
+            
+            await window.projectManager.shiftRectsDown(type, tileId, deletedIndex);
+        }
+
+        this.deletedRects = [];
+    },
+
+    saveGlobalRectData() {
+        // Only persist global rects after save
+        let globalRects = {};
+        if (this.unsavedGlobalRects && Object.keys(this.unsavedGlobalRects).length) {
+            globalRects = { ...window.projectData.tiles.global?.rects, ...this.unsavedGlobalRects };
+        } else {
+            globalRects = window.projectData.tiles.global?.rects || {};
+        }
+        const classRects = {}, idRects = {};
+
+        Object.entries(globalRects).forEach(([sel, data]) => {
+            if (sel.startsWith('.')) classRects[sel] = data;
+            else if (sel.startsWith('#')) idRects[sel] = data;
+        });
+
+        const finalOutput = this.generateFinalOutput(classRects, idRects);
+
+        window.projectData.tiles.global = window.projectData.tiles.global || {};
+        window.projectData.tiles.global.rects = finalOutput;
+
+        alert('✔ Global rects saved.');
+        this.setGlobalMode(false);
+        this.currentTileId = null;
+        document.querySelector('.image-editor').classList.add('hidden');
+        this.pendingRects = [];
+        this.deletedRects = [];
+        // Clear unsaved global rects and counters after save
+        this.unsavedGlobalRects = {};
+        this.globalTypeCounters = {};
+        this.globalOtherCounters = {};
+        setTimeout(() => {
+            if (window.tileRenderer?.showTiles) {
+                window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+            }
+        }, 10);
+    },
+
+    generateFinalOutput(classRects, idRects) {
+        const finalOutput = { ...classRects };
+        for (const [sel, rect] of Object.entries(idRects)) {
+            const baseType = sel.replace(/\d+/, '1').replace('#', '.');
+            const base = classRects[baseType];
+
+            const diffs = {};
+            for (const key of ['top', 'left', 'width', 'height']) {
+                if (!base || rect[key] !== base[key]) {
+                    diffs[key] = rect[key];
+                }
+            }
+
+            finalOutput[sel] = Object.keys(diffs).length ? diffs : rect;
+        }
+        return finalOutput;
+    },
+    
+    async addEditorRect(type) {
+        const tileId = this.currentTileId;
+        const isGlobal = this.currentMode === 'global';
+
+        // Ensure global data structure exists if in global mode
+        if (isGlobal && !window.projectData.tiles.global) {
+            window.projectData.tiles.global = { rects: {} };
+        }
+
+        // Use a local variable for rects in global mode (do not persist until save)
+        let targetTile;
+        if (isGlobal) {
+            if (!this.unsavedGlobalRects) this.unsavedGlobalRects = {};
+            targetTile = { rects: { ...window.projectData.tiles.global?.rects, ...this.unsavedGlobalRects } };
+        } else {
+            targetTile = window.projectData.tiles[tileId];
+        }
+
+        if (!targetTile.rects) targetTile.rects = {};
+
+        const container = isGlobal
+            ? document.getElementById('globalRectsContainer')
+            : document.getElementById('editorRectsContainer');
+
+        // --- Use separate counters for "other" rect types in global mode ---
+        // "other" types: link, alt, pres, pdf, vid
+        const isOtherType = ['link', 'alt', 'pres', 'pdf', 'vid'].includes(type);
+        if (isGlobal && isOtherType) {
+            if (!this.globalOtherCounters) this.globalOtherCounters = {};
+            if (typeof this.globalOtherCounters[type] !== 'number') this.globalOtherCounters[type] = 0;
+        }
+        if (isGlobal && !isOtherType) {
+            if (!this.globalTypeCounters) this.globalTypeCounters = {};
+            if (typeof this.globalTypeCounters[type] !== 'number') this.globalTypeCounters[type] = 0;
+        }
+
+        // Find all existing selectors for this type in this mode
+        const getTypeFromSelector = (sel) => {
+            const m = sel.match(/[#.](\w+)-btn(\d+)?$/);
+            return m ? m[1] : '';
+        };
+        const existing = Object.keys(targetTile.rects)
+            .filter(k => getTypeFromSelector(k) === type);
+        const pending = this.pendingRects
+            .filter(r => getTypeFromSelector(r.selector) === type)
+            .map(r => r.selector);
+        const allSelectors = [...existing, ...pending];
+
+        let id, selector, nextIndex;
+        if (isGlobal && !allSelectors.some(k => k.startsWith(`.${type}-btn`))) {
+            id = `${type}-btn`;
+            selector = `.${id}`;
+        } else {
+            // --- Use separate counters for "other" types in global mode ---
+            let usedNumbers = allSelectors
+                .map(k => parseInt(k.match(/\d+$/)?.[0]))
+                .filter(n => !isNaN(n));
+            if (isGlobal && isOtherType) {
+                // Use and increment dedicated counter for this type
+                nextIndex = this.globalOtherCounters[type] + 1;
+                while (usedNumbers.includes(nextIndex)) nextIndex++;
+                this.globalOtherCounters[type] = nextIndex;
+            } else if (isGlobal && !isOtherType) {
+                nextIndex = this.globalTypeCounters[type] + 1;
+                while (usedNumbers.includes(nextIndex)) nextIndex++;
+                this.globalTypeCounters[type] = nextIndex;
+            } else {
+                nextIndex = 1;
+                while (usedNumbers.includes(nextIndex)) nextIndex++;
+            }
+            id = `${type}-btn${nextIndex}`;
+            selector = `#${id}`;
+        }
+
+        const countOfThisType = allSelectors.length;
+        const color = typeDefs[type]?.color || 'rgba(200,200,200,0.3)';
+        const baseTop = typeDefs[type]?.baseTop || 100;
+        const topOffset = baseTop + countOfThisType * 40;
+        const leftOffset = 100 + countOfThisType * 50;
+
+        const groupIndex = this.groupIndexMap?.[type] || 0;
+        if (!isGlobal) this.groupIndexMap[type] = groupIndex + 1;
+
+        const rect = this._createRect(id, selector, color, groupIndex, baseTop, '');
+
+        if (isGlobal && type === 'glob') {
+            const nameInput = document.createElement('input');
+            nameInput.className = 'rect-meta';
+            nameInput.placeholder = 'Enter name';
+            nameInput.oninput = () => {
+                let clean = nameInput.value.trim().replace(/\s+/g, '').replace(/[^a-zA-Z0-9_-]/g, '');
+                if (!clean) clean = `glob${Date.now()}`;
+                rect.dataset.selector = `#${clean}-btn`;
+                document.getElementById('rect-name').textContent = `#${clean}-btn`;
+            };
+            rect.appendChild(nameInput);
+        }
+
+        let meta = {};
+        if (type === 'link' || type === 'alt') meta.target = '';
+        if (type === 'pres') meta.value = '';
+        if (type === 'pdf') meta.pdf = '';
+        if (type === 'vid') meta.vid = '';
+
+        if (meta.target !== undefined) {
+            const select = document.createElement('select');
+            select.className = 'rect-meta';
+            select.innerHTML = '<option value="">Select</option>';
+
+            if (type === 'link') {
+                Object.keys(window.projectData.tiles)
+                    .filter(id => id !== tileId && id !== 'global')
+                    .forEach(id => {
+                        select.innerHTML += `<option value="${id}">${id}</option>`;
+                    });
+            }
+
+            if (type === 'alt') {
+                Object.keys(targetTile.rects || {})
+                    .filter(k => !k.includes('alt-btn'))
+                    .forEach(sel => {
+                        select.innerHTML += `<option value="${sel}">${sel}</option>`;
+                    });
+            }
+
+            select.onchange = () => meta.target = select.value;
+            rect.appendChild(select);
+        }
+
+        if (meta.value !== undefined) {
+            const input = document.createElement('input');
+            input.className = 'rect-meta';
+            input.placeholder = 'Enter value';
+            input.oninput = () => meta.value = input.value;
+            rect.appendChild(input);
+        }
+
+        // PDF: Add select PDF button
+        if (type === 'pdf') {
+            const pdfBtn = document.createElement('button');
+            pdfBtn.textContent = 'Select PDF';
+            pdfBtn.className = 'rect-meta pdf-select-btn';
+            pdfBtn.style.marginTop = '8px';
+            pdfBtn.type = 'button';
+
+            const filenameSpan = document.createElement('span');
+            filenameSpan.className = 'pdf-filename';
+            filenameSpan.style.display = 'block';
+            filenameSpan.style.fontSize = '11px';
+            filenameSpan.style.marginTop = '4px';
+
+            pdfBtn.onclick = async () => {
+                const filePath = await window.electronAPI.selectFile('pdf');
+                if (!filePath) return;
+                const appDir = await window.electronAPI.getAppDir();
+                const pdfsDir = `${appDir}/pdfs`;
+                await window.electronAPI.makeDir(pdfsDir);
+                const fileName = filePath.split(/[\\/]/).pop();
+                const destPath = `${pdfsDir}/${fileName}`;
+                await window.electronAPI.copyFile(filePath, destPath);
+                filenameSpan.textContent = fileName;
+                filenameSpan.dataset.filename = fileName;
+                meta.pdf = fileName;
+            };
+            rect.appendChild(pdfBtn);
+            rect.appendChild(filenameSpan);
+        }
+
+        // VID: Add select Video button
+        if (type === 'vid') {
+            const vidBtn = document.createElement('button');
+            vidBtn.textContent = 'Select Video';
+            vidBtn.className = 'rect-meta vid-select-btn';
+            vidBtn.style.marginTop = '8px';
+            vidBtn.type = 'button';
+
+            const filenameSpan = document.createElement('span');
+            filenameSpan.className = 'vid-filename';
+            filenameSpan.style.display = 'block';
+            filenameSpan.style.fontSize = '11px';
+            filenameSpan.style.marginTop = '4px';
+
+            vidBtn.onclick = async () => {
+                // Only accept .mp4 files
+                const filePath = await window.electronAPI.selectFile('mp4');
+                if (!filePath || !filePath.toLowerCase().endsWith('.mp4')) return;
+                const appDir = await window.electronAPI.getAppDir();
+                const vidsDir = `${appDir}/vids`;
+                await window.electronAPI.makeDir(vidsDir);
+                const fileName = filePath.split(/[\\/]/).pop();
+                const destPath = `${vidsDir}/${fileName}`;
+                await window.electronAPI.copyFile(filePath, destPath);
+                filenameSpan.textContent = fileName;
+                filenameSpan.dataset.filename = fileName;
+                meta.vid = fileName;
+            };
+            rect.appendChild(vidBtn);
+            rect.appendChild(filenameSpan);
+        }
+
+        container.appendChild(rect);
+
+        rect.style.top = `${topOffset}px`;
+        rect.style.left = `${leftOffset}px`;
+        rect.style.width = '100px';
+        rect.style.height = '60px';
+
+        window.makeDraggableResizable(rect);
+
+        let imagePath = null;
+        if (['mod', 'ref', 'tab'].includes(type)) {
+            const shortId = selector.replace('#', '').replace('-btn', '');
+            const ext = type === 'tab' ? '.jpg' : '.png';
+            imagePath = `screens/slide_${tileId}_${shortId}${ext}`;
+        }
+
+        // Only add to pendingRects, not to tile.rects/global.rects yet
+        this.pendingRects.push({ selector, rect, meta, type, imagePath });
+
+        // For global mode, also track in unsavedGlobalRects for rendering
+        if (isGlobal) {
+            if (!this.unsavedGlobalRects) this.unsavedGlobalRects = {};
+            this.unsavedGlobalRects[selector] = {
+                top: topOffset,
+                left: leftOffset,
+                width: 100,
+                height: 60
+            };
+        }
+    },
+    
+      _applyStyle(rect, selector, styles) {
 		const s = styles?.[selector];
 		if (!s) return;
 		rect.style.top = `${s.top}px`;
@@ -232,105 +495,307 @@ window.editorPanel = {
 		rect.style.width = `${s.width}px`;
 		rect.style.height = `${s.height}px`;
 	  },
-	
+	  
+	  _getRectTypeFromSelector(selector) {
+		if (selector.includes('mod')) return 'mod';
+		if (selector.includes('ref')) return 'ref';
+		if (selector.includes('tab')) return 'tab';
+		if (selector.includes('link')) return 'link';
+		if (selector.includes('alt')) return 'alt';
+		if (selector.includes('pres')) return 'pres';
+		if (selector.includes('pdf')) return 'pdf';
+		if (selector.includes('vid')) return 'vid';
+		return '';
+	},
 	  _createRect(id, selector, bgColor, index = 0, baseTop = 100, group = '') {
-		const rect = document.createElement('div');
-		rect.className = 'rect draggable resizable';
-		rect.dataset.selector = selector;
-		rect.style.left = `${100 + index * 50}px`;
-		rect.style.top = `${baseTop + index * 40}px`;
-		rect.style.width = '100px';
-		rect.style.height = '60px';
-		rect.style.background = bgColor;
-		  	
-		const label = document.createElement('div');
-		label.className = 'rect-label';
-		label.innerText = `${this.currentTileId} ${id}\n(${selector.split(' ')[0]})`;
-		rect.appendChild(label);
+        const rect = document.createElement('div');
+        rect.className = 'rect draggable resizable';
 
-		const del = document.createElement('div');
-		del.className = 'rect-delete';
-		del.innerText = '×';
-		del.onclick = async (e) => {
-			e.stopPropagation();
-			rect.remove();
-		  
-			const tileId = this.currentTileId;
-			const tile = window.projectData.tiles[tileId];
-			const selectorId = selector.replace('#', '');
-			
-			// ✅ If deleting a tab, undock anything assigned to it (return to main)
-			if (selectorId.startsWith('tab-btn')) {
-			  const tabNum = selectorId.replace('tab-btn', '');
-			  const tabId = `tab${tabNum}`;
-		  
-			  Object.entries(tile.docked || {}).forEach(([btnId, dockTarget]) => {
-				if (dockTarget === tabId) {
-				  console.log(`↩ Returning ${btnId} from ${tabId} to main`);
-				  delete tile.docked[btnId]; // fully undock
-				}
-			  });
-			}
-		  
-			// Universal rect deletion
-			const rectType = selectorId.split('-')[0]; // e.g., 'mod', 'ref', 'tab', 'alt', 'link', 'pres'
-			const knownTypes = ['mod', 'ref', 'tab', 'alt', 'link', 'pres'];
+        // --- Global mode: transparent white bg, black text, bold/standout label ---
+        if (this.currentMode === 'global') {
+            rect.style.background = 'rgba(255,255,255,0.7)';
+            rect.style.border = '2px dashed #222';
+        } else {
+            rect.style.background = bgColor;
+        }
 
-			if (knownTypes.includes(rectType)) {
-				const shortId = selectorId.replace('-btn', '');
-				const ext = ['tab', 'mod', 'ref'].includes(rectType) ? (rectType === 'tab' ? '.jpg' : '.png') : null;
-				const filename = ext ? `slide_${tileId}_${shortId}${ext}` : null;
-				const index = parseInt(shortId.replace(rectType, ''));
+        rect.dataset.selector = selector;
+        rect.style.left = `${100 + index * 50}px`;
+        rect.style.top = `${baseTop + index * 40}px`;
+        rect.style.width = '100px';
+        rect.style.height = '60px';
 
-				// If image-based, add to deletedRects
-				//if (ext) {
-				this.deletedRects.push({ selector, type: rectType, tileId, index, filename });
-				this.pendingRects = this.pendingRects.filter(p => p.selector !== selector);
-				//}
+        // --- Label: neater, more prominent ---
+        const label = document.createElement('div');
+        label.className = 'rect-label';
+        label.style.fontWeight = 'bold';
+        label.style.fontSize = '13px';
+        label.style.letterSpacing = '0.5px';
+        label.style.textShadow = this.currentMode === 'global'
+            ? '0 1px 4px #fff, 0 0px 1px #fff'
+            : '0 1px 4px #222, 0 0px 1px #fff';
+        label.style.color = this.currentMode === 'global' ? '#111' : '#fff';
+        label.style.background = this.currentMode === 'global' ? 'rgba(255,255,255,0.5)' : 'transparent';
+        label.style.padding = '2px 6px';
+        label.style.borderRadius = '6px';
+        label.style.margin = '2px 0';
 
-				// Remove from data immediately
-				delete tile.rects[selector];
-			}
+        // Label text: show type and index, and selector
+        let labelText = '';
+        if (this.currentMode === 'global') {
+            labelText = `GLOBAL ${id}\n${selector}`;
+        } else {
+            labelText = `${this.currentTileId} ${id}\n${selector}`;
+        }
+        label.innerText = labelText;
+        rect.appendChild(label);
 
-			window.rectInspector.bindToRect(rect);
+        // Add delete functionality
+        const del = document.createElement('div');
+        del.className = 'rect-delete';
+        del.innerText = '×';
+        del.onclick = async (e) => {
+            e.stopPropagation();
+            rect.remove();
 
-			if (window.tileRenderer?.showTiles) {
-			  window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
-			}
-		};
+            const tileId = this.currentTileId;
+            const tile = window.projectData.tiles[tileId];
+            const selectorId = selector.replace('#', '');
 
+            if (this.currentMode === 'global') {
+                if (window.projectData.tiles.global?.rects?.[selector]) {
+                    delete window.projectData.tiles.global.rects[selector];
+                }
+                if (this.unsavedGlobalRects && this.unsavedGlobalRects[selector]) {
+                    delete this.unsavedGlobalRects[selector];
+                }
+                // Remove from counters if needed (for "other" types)
+                const type = selector.replace(/^([#.])/, '').split('-')[0];
+                if (this.globalOtherCounters && this.globalOtherCounters[type]) {
+                    this.globalOtherCounters[type]--;
+                }
+                if (this.globalTypeCounters && this.globalTypeCounters[type]) {
+                    this.globalTypeCounters[type]--;
+                }
+                return;
+            }
 
-		if (index === 0 && group) {
-			const header = document.createElement('div');
-			header.className = 'group-label';
-			header.innerText = group;
-			header.style.position = 'absolute';
-			header.style.left = '10px';
-			header.style.top = `${baseTop - 30}px`;
-			header.style.fontWeight = 'bold';
-			header.style.fontSize = '14px';
-			header.style.color = '#fff';
-			document.getElementById('editorRectsContainer')?.appendChild(header);
-		}
+            if (selectorId.startsWith('tab-btn')) {
+                const tabNum = selectorId.replace('tab-btn', '');
+                const tabId = `tab${tabNum}`;
 
-		
+                Object.entries(tile.docked || {}).forEach(([btnId, dockTarget]) => {
+                    if (dockTarget === tabId) {
+                        console.log(`↩ Returning ${btnId} from ${tabId} to main`);
+                        delete tile.docked[btnId];
+                    }
+                });
+            }
 
-		rect.appendChild(del);
-		
-		rect.addEventListener('click', (e) => {
-			e.stopPropagation();
-			window.rectInspector.bindToRect(rect);
-		});
-		window.makeDraggableResizable(rect);
-		return rect;
-	  },
+            const rectType = selectorId.split('-')[0];
+            const knownTypes = ['mod', 'ref', 'tab', 'alt', 'link', 'pres'];
 
+            if (knownTypes.includes(rectType)) {
+                const shortId = selectorId.replace('-btn', '');
+                const ext = ['tab', 'mod', 'ref'].includes(rectType) ? (rectType === 'tab' ? '.jpg' : '.png') : null;
+                const filename = ext ? `slide_${tileId}_${shortId}${ext}` : null;
+                const index = parseInt(shortId.replace(rectType, ''));
+
+                this.deletedRects.push({ selector, type: rectType, tileId, index, filename });
+                this.pendingRects = this.pendingRects.filter(p => p.selector !== selector);
+                delete tile.rects[selector];
+            }
+
+            window.rectInspector.bindToRect(rect);
+
+            if (window.tileRenderer?.showTiles) {
+                window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+            }
+        };
+
+        if (index === 0 && group) {
+            const header = document.createElement('div');
+            header.className = 'group-label';
+            header.innerText = group;
+            header.style.position = 'absolute';
+            header.style.left = '10px';
+            header.style.top = `${baseTop - 30}px`;
+            header.style.fontWeight = 'bold';
+            header.style.fontSize = '14px';
+            header.style.color = '#fff';
+            document.getElementById('editorRectsContainer')?.appendChild(header);
+        }
+
+        rect.appendChild(del);
+        rect.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            window.rectInspector.bindToRect(rect);
+            const label = rect.dataset.selector || '';
+            document.getElementById('rect-name').textContent = label;
+        });
+        window.makeDraggableResizable(rect);
+        return rect;
+    },
+
+    _loadGlobalRects() {
+        const container = document.getElementById('globalRectsContainer');
+        container.innerHTML = '';
+        // Use only saved rects unless there are unsaved ones (editor open)
+        let globalRects = window.projectData.tiles.global?.rects || {};
+        if (this.unsavedGlobalRects && Object.keys(this.unsavedGlobalRects).length) {
+            globalRects = { ...globalRects, ...this.unsavedGlobalRects };
+        }
+        const types = ['mod', 'ref', 'tab', 'link', 'alt', 'pres', 'pdf', 'vid'];
+
+        types.forEach(type => {
+            const baseSelector = `.${type}-btn`;
+            const base = globalRects[baseSelector];
+
+            if (base) {
+                const rect = this._createRect(baseSelector, baseSelector, 'white', 0, 100, `${type.toUpperCase()} Defaults`);
+                this._applyStyle(rect, baseSelector, {[baseSelector]: base});
+                rect.style.border = '2px solid white';
+                container.appendChild(rect);
+                window.makeDraggableResizable(rect);
+            }
+
+            Object.entries(globalRects).forEach(([sel, data]) => {
+                if (!sel.startsWith(`#${type}-btn`)) return;
+
+                const rect = this._createRect(sel.replace('#', ''), sel, 'rgba(255,255,255,0.4)', 1, 180, '');
+                this._applyStyle(rect, sel, {[sel]: data});
+                rect.style.border = '1px dashed white';
+                container.appendChild(rect);
+                window.makeDraggableResizable(rect);
+            });
+        });
+    },
+
+    setGlobalMode(enabled) {
+        this.currentMode = enabled ? 'global' : 'main';
+        const editorRects = document.getElementById('editorRectsContainer');
+        const globalRects = document.getElementById('globalRectsContainer');
+        const buttons = document.querySelector('.editor-buttons');
+
+        // Fix: Only proceed if all elements exist
+        if (!editorRects || !globalRects || !buttons) return;
+
+        if (enabled) {
+            this._loadGlobalRects();
+            editorRects.style.display = 'none';
+            globalRects.style.display = 'block';
+            buttons.classList.add('global-mode');
+
+            buttons.innerHTML = '';
+            ['mod', 'ref', 'tab', 'link', 'alt', 'pres', 'pdf', 'vid'].forEach(type => {
+                const btn = document.createElement('button');
+                btn.textContent = `+ Global ${type}`;
+                btn.onclick = () => this.addEditorRect(type);
+                buttons.appendChild(btn);
+            });
+
+            const globalBtn = document.createElement('button');
+            globalBtn.innerText = '+ Global';
+            globalBtn.id = 'add-global-btn';
+            globalBtn.addEventListener('click', () => {
+                const name = prompt('Enter a unique name (no spaces):', 'myglob');
+                if (!name || /\s/.test(name)) {
+                    alert('Invalid name.');
+                    return;
+                }
+                const sel = `#${name}-btn`;
+                const rect = this._createRect(`${name}-btn`, sel, 'rgba(255,255,255,0.4)', 0, 620, 'Global Buttons');
+                document.getElementById('globalRectsContainer')?.appendChild(rect);
+                window.makeDraggableResizable(rect);
+                // Track in unsavedGlobalRects
+                if (!this.unsavedGlobalRects) this.unsavedGlobalRects = {};
+                this.unsavedGlobalRects[sel] = {
+                    top: 620,
+                    left: 100,
+                    width: 100,
+                    height: 60
+                };
+            });
+            buttons.appendChild(globalBtn);
+        } else {
+            const showGlobalRects = document.getElementById('show-global-rects');
+            if (showGlobalRects) showGlobalRects.checked = false;
+            editorRects.style.display = 'block';
+            globalRects.style.display = 'none';
+            buttons.classList.remove('global-mode');
+
+            buttons.innerHTML = `
+                <button id="add-mod-btn">+ Mod</button>
+                <button id="add-ref-btn">+ Ref</button>
+                <button id="add-tab-btn">+ Tab</button>
+                <button id="add-link-btn">+ Link</button>
+                <button id="add-alt-btn">+ Alt</button>
+                <button id="add-pres-btn">+ Pres</button>
+                <button id="add-pdf-btn">+ PDF</button>
+                <button id="add-vid-btn">+ Vid</button>
+            `;
+            ['mod', 'ref', 'tab', 'link', 'alt', 'pres', 'pdf', 'vid'].forEach(type => {
+                document.getElementById(`add-${type}-btn`)?.addEventListener('click', () => {
+                    this.addEditorRect(type);
+                });
+            });
+        }
+    },
+	 
 	handleTileClick(e) {
 	  const tileId = $(e.currentTarget).data('tileid');
 	  const imagePath = $(e.currentTarget).data('img');
 	  window.editorPanel.open({ tileId, rectId: null, imagePath, type: null });
 	},
-  
+	/*
+	addGlobalRect(type) {
+		const baseSelector = `.${type}-btn`;
+		const global = window.projectData.tiles.global || (window.projectData.tiles.global = { rects: {} });
+		global.rects = global.rects || {};
+
+		const rects = global.rects;
+
+		if (!rects[baseSelector]) {
+			rects[baseSelector] = { top: 100, left: 100, width: 100, height: 60 };
+			alert(`✔ Created default global ${type}-btn`);
+		} else {
+			const i = Object.keys(rects).filter(k => k.startsWith(`#${type}-btn`)).length + 2;
+			rects[`#${type}-btn${i}`] = {
+			top: 100 + i * 20,
+			left: 100 + i * 20,
+			width: 100,
+			height: 60
+			};
+			alert(`✔ Added #${type}-btn${i} to global`);
+		}
+
+		// 🔁 Clear container but preserve DOM position data first
+		const existing = {};
+		document.querySelectorAll('#globalRectsContainer .rect').forEach(r => {
+			existing[r.dataset.selector] = {
+			top: r.style.top,
+			left: r.style.left,
+			width: r.style.width,
+			height: r.style.height
+			};
+		});
+
+		this._loadGlobalRects();
+
+		// 🔁 Restore visual positions
+		setTimeout(() => {
+			Object.entries(existing).forEach(([sel, style]) => {
+			const el = document.querySelector(`#globalRectsContainer .rect[data-selector="${sel}"]`);
+			if (el) {
+				el.style.top = style.top;
+				el.style.left = style.left;
+				el.style.width = style.width;
+				el.style.height = style.height;
+			}
+			});
+		}, 0);
+	},
+*/
 	async handleIndicatorClick(e) {
 		e.stopPropagation();
 		const tileId = $(e.currentTarget).data('tileid');
@@ -383,31 +848,75 @@ window.editorPanel = {
 	  },
   
 	open({ tileId, rectId, imagePath, type }) {
-	  this.currentTileId = tileId;
-	  this.currentRectId = rectId;
-	  this.currentMode = type === 'tab' ? 'tab' : rectId ? 'indicator' : 'main';
-	  this.groupIndexMap = { mod: 0, ref: 0, tab: 0, link: 0, alt: 0, pres: 0 };
 
-	  document.querySelector('.image-editor').classList.remove('hidden');
-	  document.getElementById('editorImage').src = imagePath || '';
+		console.log('editorPanel.open called with', tileId);
 
-  
-	  const container = document.getElementById('editorRectsContainer');
-	  container.innerHTML = '';
-  
-	  const tile = window.projectData.tiles[tileId];
-	  const rectData = tile.rects || {};
-	  const docked = tile.docked || {};
-	  const assets = tile.images || {};
+		this.currentTileId = tileId;
+		this.currentRectId = rectId;
+		// Always start in main mode, hide global rects, uncheck checkbox
+		this.currentMode = type === 'tab' ? 'tab' : rectId ? 'indicator' : 'main';
+		this.groupIndexMap = { mod: 0, ref: 0, tab: 0, link: 0, alt: 0, pres: 0, pdf: 0, vid: 0 };
+		this.pendingRects = [];
+		this.deletedRects = [];
+		// Clear unsaved global rects and counters on open (unless in global mode)
+		this.unsavedGlobalRects = {};
+		this.globalTypeCounters = {};
+		this.globalOtherCounters = {};
+
+        // Hide global rects, show per-tile rects, uncheck checkbox
+        const globalRects = document.getElementById('globalRectsContainer');
+        const editorRects = document.getElementById('editorRectsContainer');
+        if (globalRects) globalRects.style.display = 'none';
+        if (editorRects) editorRects.style.display = 'block';
+        const showGlobalRects = document.getElementById('show-global-rects');
+        if (showGlobalRects) showGlobalRects.checked = false;
+
+		document.querySelector('.image-editor').classList.remove('hidden');
+		document.getElementById('editorImage').src = imagePath || '';
+
+
+		const container = document.getElementById('editorRectsContainer');
+		container.innerHTML = '';
+
+		const metaTileId = document.getElementById('meta-tile-id');
+		const metaImage = document.getElementById('meta-image');
+		const metaRectCount = document.getElementById('meta-rect-count');
+		const metaLabel = document.getElementById('meta-tile-label');
+
+
+		const tile = window.projectData.tiles[tileId];
+		const rectCount = Object.keys(tile?.rects || {}).length;
+
+		if (metaTileId) metaTileId.textContent = tileId;
+		if (metaImage) metaImage.textContent = imagePath?.split('/').pop() || 'N/A';
+		if (metaRectCount) metaRectCount.textContent = rectCount;
+
+		// Hook up label editing
+		if (metaLabel) {
+		metaLabel.value = tile?.label || '';
+		metaLabel.oninput = () => {
+			tile.label = metaLabel.value;
+
+			// Optional: Refresh previewPane or tileRenderer if needed
+			if (window.previewPane?.update) window.previewPane.update();
+			if (window.tileRenderer?.showTiles) {
+			window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+			}
+		};
+		}
+
+		const rectData = tile.rects || {};
+		const docked = tile.docked || {};
+		const assets = tile.images || {};
 
 
 		const isMainSlide = this.currentMode === 'main';
 		const currentTab = this.currentMode === 'tab' ? this.currentRectId : null;
 
 		const isDockedElsewhere = (selector) => {
-		const id = selector.replace('#', '');
-		const dockedTo = docked?.[id];
-		return dockedTo && (!currentTab || dockedTo !== currentTab);
+			const id = selector.replace('#', '');
+			const dockedTo = docked?.[id];
+			return dockedTo && (!currentTab || dockedTo !== currentTab);
 		};
 
 
@@ -446,54 +955,124 @@ window.editorPanel = {
 	  }
   
 	  if (this.currentMode === 'tab' && rectId?.startsWith('tab')) {
-		const tabIndex = parseInt(rectId.replace('tab', ''));
-		let modIndex = 0;
-		let refIndex = 0;
-  
-		Object.entries(docked).forEach(([btnId, tabId]) => {
-		  if (tabId !== `tab${tabIndex}`) return;
-		  const selector = `#${btnId}`;
-		  const isRef = btnId.startsWith('ref');
-		  const baseTop = isRef ? 300 : 100;
-		  const index = isRef ? refIndex++ : modIndex++;
-		  const group = isRef ? 'Ref Buttons' : 'Modal Buttons';
-		  const color = isRef ? 'rgba(0,255,0,0.3)' : 'rgba(0,0,255,0.3)';
-  
-		  const rect = this._createRect(btnId, selector, color, index, baseTop, group);
-		  this._applyStyle(rect, selector, rectStyles);
-		  container.appendChild(rect);
+            const tabIndex = parseInt(rectId.replace('tab', ''));
+            let modIndex = 0;
+            let refIndex = 0;
 
-		  // Rebuild dropdown/input
-			const saved = rectStyles[selector];
-			if (saved?.target !== undefined) {
-			const select = document.createElement('select');
-			select.className = 'rect-meta';
-			select.innerHTML = `<option value="">Select</option>`;
-			
-			if (btnId.startsWith('link')) {
-				Object.keys(window.projectData.tiles).filter(id => id !== tileId).forEach(sid => {
-				select.innerHTML += `<option value="${sid}" ${sid === saved.target ? 'selected' : ''}>${sid}</option>`;
-				});
-			} else if (btnId.startsWith('alt')) {
-				Object.keys(rectData).filter(k => !k.includes('alt')).forEach(sel => {
-				select.innerHTML += `<option value="${sel}" ${sel === saved.target ? 'selected' : ''}>${sel}</option>`;
-				});
-			}
+            Object.entries(docked).forEach(([btnId, tabId]) => {
+                if (tabId !== `tab${tabIndex}`) return;
+                const selector = `#${btnId}`;
+                const isRef = btnId.startsWith('ref');
+                const baseTop = isRef ? 180 : 100;
+                const index = isRef ? refIndex++ : modIndex++;
+                const group = isRef ? 'Ref Buttons' : 'Modal Buttons';
+                const color = isRef ? 'rgba(0,255,0,0.3)' : 'rgba(0,0,255,0.3)';
 
-			select.onchange = () => tile.rects[selector].target = select.value;
-			rect.appendChild(select);
-			}
+                const rect = this._createRect(btnId, selector, color, index, baseTop, group);
+                this._applyStyle(rect, selector, rectStyles);
+                container.appendChild(rect);
 
-			if (saved?.value !== undefined) {
-			const input = document.createElement('input');
-			input.className = 'rect-meta';
-			input.value = saved.value;
-			input.oninput = () => tile.rects[selector].value = input.value;
-			rect.appendChild(input);
-			}
-		});
-		return;
-	  }
+                // Rebuild dropdown/input for link/alt/pres
+                const saved = rectStyles[selector];
+                if (saved?.target !== undefined) {
+                    const select = document.createElement('select');
+                    select.className = 'rect-meta';
+                    select.innerHTML = `<option value="">Select</option>`;
+                    if (btnId.startsWith('link')) {
+                        Object.keys(window.projectData.tiles).filter(id => id !== tileId).forEach(sid => {
+                            select.innerHTML += `<option value="${sid}" ${sid === saved.target ? 'selected' : ''}>${sid}</option>`;
+                        });
+                    } else if (btnId.startsWith('alt')) {
+                        Object.keys(rectData).filter(k => !k.includes('alt')).forEach(sel => {
+                            select.innerHTML += `<option value="${sel}" ${sel === saved.target ? 'selected' : ''}>${sel}</option>`;
+                        });
+                    }
+                    select.value = saved.target || '';
+                    select.onchange = () => tile.rects[selector].target = select.value;
+                    rect.appendChild(select);
+                }
+                if (saved?.value !== undefined) {
+                    const input = document.createElement('input');
+                    input.className = 'rect-meta';
+                    input.placeholder = 'Enter value';
+                    input.value = saved.value;
+                    input.oninput = () => tile.rects[selector].value = input.value;
+                    rect.appendChild(input);
+                }
+                // --- PDF/VID: preserve select/upload button and filename label when docked ---
+                if (btnId.startsWith('pdf')) {
+                    const pdfBtn = document.createElement('button');
+                    pdfBtn.textContent = 'Select PDF';
+                    pdfBtn.className = 'rect-meta pdf-select-btn';
+                    pdfBtn.style.marginTop = '8px';
+                    pdfBtn.type = 'button';
+
+                    const filenameSpan = document.createElement('span');
+                    filenameSpan.className = 'pdf-filename';
+                    filenameSpan.style.display = 'block';
+                    filenameSpan.style.fontSize = '11px';
+                    filenameSpan.style.marginTop = '4px';
+                    if (saved?.pdf) {
+                        filenameSpan.textContent = saved.pdf;
+                        filenameSpan.dataset.filename = saved.pdf;
+                    }
+
+                    pdfBtn.onclick = async () => {
+                        const filePath = await window.electronAPI.selectFile('pdf');
+                        if (!filePath) return;
+                        const appDir = await window.electronAPI.getAppDir();
+                        const pdfsDir = `${appDir}/pdfs`;
+                        await window.electronAPI.makeDir(pdfsDir);
+                        const fileName = filePath.split(/[\\/]/).pop();
+                        const destPath = `${pdfsDir}/${fileName}`;
+                        await window.electronAPI.copyFile(filePath, destPath);
+                        filenameSpan.textContent = fileName;
+                        filenameSpan.dataset.filename = fileName;
+                        window.projectData.tiles[tileId].rects[selector].pdf = fileName;
+                        const pdfNum = selector.match(/\d+/)?.[0];
+                        if (pdfNum) window.projectData.tiles[tileId][`pdf${pdfNum}`] = fileName;
+                    };
+                    rect.appendChild(pdfBtn);
+                    rect.appendChild(filenameSpan);
+                }
+                if (btnId.startsWith('vid')) {
+                    const vidBtn = document.createElement('button');
+                    vidBtn.textContent = 'Select Video';
+                    vidBtn.className = 'rect-meta vid-select-btn';
+                    vidBtn.style.marginTop = '8px';
+                    vidBtn.type = 'button';
+
+                    const filenameSpan = document.createElement('span');
+                    filenameSpan.className = 'vid-filename';
+                    filenameSpan.style.display = 'block';
+                    filenameSpan.style.fontSize = '11px';
+                    filenameSpan.style.marginTop = '4px';
+                    if (saved?.vid) {
+                        filenameSpan.textContent = saved.vid;
+                        filenameSpan.dataset.filename = saved.vid;
+                    }
+
+                    vidBtn.onclick = async () => {
+                        const filePath = await window.electronAPI.selectFile('mp4');
+                        if (!filePath || !filePath.toLowerCase().endsWith('.mp4')) return;
+                        const appDir = await window.electronAPI.getAppDir();
+                        const vidsDir = `${appDir}/vids`;
+                        await window.electronAPI.makeDir(vidsDir);
+                        const fileName = filePath.split(/[\\/]/).pop();
+                        const destPath = `${vidsDir}/${fileName}`;
+                        await window.electronAPI.copyFile(filePath, destPath);
+                        filenameSpan.textContent = fileName;
+                        filenameSpan.dataset.filename = fileName;
+                        window.projectData.tiles[tileId].rects[selector].vid = fileName;
+                        const vidNum = selector.match(/\d+/)?.[0];
+                        if (vidNum) window.projectData.tiles[tileId][`vid${vidNum}`] = fileName;
+                    };
+                    rect.appendChild(vidBtn);
+                    rect.appendChild(filenameSpan);
+                }
+            });
+            return;
+        }
   
 	  Object.entries(rectData).forEach(([selector, vals]) => {
 		if (isMainSlide && isDockedElsewhere(selector)) return;
@@ -504,8 +1083,10 @@ window.editorPanel = {
 		  : id.includes('tab') ? 'rgba(255,255,0,0.3)'
 		  : id.includes('link') ? 'rgba(255,140,0,0.3)'
 		  : id.includes('alt') ? 'rgba(128,0,128,0.3)'
+		  : id.includes('pres') ? 'rgba(0,206,201,0.3)'
+		  : id.includes('pdf') ? typeDefs.pdf.color
 		  : 'rgba(0,206,201,0.3)';
-  
+
 		const rect = this._createRect(id, selector, color, 0, baseTop, '');
 		this._applyStyle(rect, selector, rectData);
 		
@@ -545,42 +1126,123 @@ window.editorPanel = {
 		  rect.appendChild(input);
 		}
   
+		// PDF: Add select PDF button and show filename if present
+        if (id.startsWith('pdf')) {
+            const pdfBtn = document.createElement('button');
+            pdfBtn.textContent = 'Select PDF';
+            pdfBtn.className = 'rect-meta pdf-select-btn';
+            pdfBtn.style.marginTop = '8px';
+            pdfBtn.type = 'button';
+
+            const filenameSpan = document.createElement('span');
+            filenameSpan.className = 'pdf-filename';
+            filenameSpan.style.display = 'block';
+            filenameSpan.style.fontSize = '11px';
+            filenameSpan.style.marginTop = '4px';
+            if (vals.pdf) {
+                filenameSpan.textContent = vals.pdf;
+                filenameSpan.dataset.filename = vals.pdf;
+            }
+
+            pdfBtn.onclick = async () => {
+                const filePath = await window.electronAPI.selectFile('pdf');
+                if (!filePath) return;
+                const appDir = await window.electronAPI.getAppDir();
+                const pdfsDir = `${appDir}/pdfs`;
+                await window.electronAPI.makeDir(pdfsDir);
+                const fileName = filePath.split(/[\\/]/).pop();
+                const destPath = `${pdfsDir}/${fileName}`;
+                await window.electronAPI.copyFile(filePath, destPath);
+                filenameSpan.textContent = fileName;
+                filenameSpan.dataset.filename = fileName;
+                window.projectData.tiles[tileId].rects[selector].pdf = fileName;
+                // Also update tile.pdfN
+                const pdfNum = selector.match(/\d+/)?.[0];
+                if (pdfNum) window.projectData.tiles[tileId][`pdf${pdfNum}`] = fileName;
+            };
+            rect.appendChild(pdfBtn);
+            rect.appendChild(filenameSpan);
+        }
+        // VID: Add select Video button and show filename if present
+        if (id.startsWith('vid')) {
+            const vidBtn = document.createElement('button');
+            vidBtn.textContent = 'Select Video';
+            vidBtn.className = 'rect-meta vid-select-btn';
+            vidBtn.style.marginTop = '8px';
+            vidBtn.type = 'button';
+
+            const filenameSpan = document.createElement('span');
+            filenameSpan.className = 'vid-filename';
+            filenameSpan.style.display = 'block';
+            filenameSpan.style.fontSize = '11px';
+            filenameSpan.style.marginTop = '4px';
+            if (vals.vid) {
+                filenameSpan.textContent = vals.vid;
+                filenameSpan.dataset.filename = vals.vid;
+            }
+
+            vidBtn.onclick = async () => {
+                // Only accept .mp4 files
+                const filePath = await window.electronAPI.selectFile('mp4');
+                if (!filePath || !filePath.toLowerCase().endsWith('.mp4')) return;
+                const appDir = await window.electronAPI.getAppDir();
+                const vidsDir = `${appDir}/vids`;
+                await window.electronAPI.makeDir(vidsDir);
+                const fileName = filePath.split(/[\\/]/).pop();
+                const destPath = `${vidsDir}/${fileName}`;
+                await window.electronAPI.copyFile(filePath, destPath);
+                filenameSpan.textContent = fileName;
+                filenameSpan.dataset.filename = fileName;
+                window.projectData.tiles[tileId].rects[selector].vid = fileName;
+                // Also update tile.vidN
+                const vidNum = selector.match(/\d+/)?.[0];
+                if (vidNum) window.projectData.tiles[tileId][`vid${vidNum}`] = fileName;
+            };
+            rect.appendChild(vidBtn);
+            rect.appendChild(filenameSpan);
+        }
+
 		container.appendChild(rect);
-	  });
-  
-	  const infoDiv = document.createElement('div');
-	  infoDiv.id = 'editor-info';
-	  infoDiv.innerHTML = `
-		<div class="editor-meta">
-		  <strong>Tile ID:</strong> ${tileId}<br />
-		  <strong>Image:</strong> ${imagePath?.split('/').pop() || 'N/A'}<br />
-		  <strong>Rects:</strong> ${Object.keys(rectData).length}
-		</div>
-		<div class="editor-buttons">
-		  <button id="add-mod-btn">+ Mod</button>
-		  <button id="add-ref-btn">+ Ref</button>
-		  <button id="add-tab-btn">+ Tab</button>
-		  <button id="add-link-btn">+ Link</button>
-		  <button id="add-alt-btn">+ Alt</button>
-		  <button id="add-pres-btn">+ Pres</button>
-		</div>
-	  `;
-	  container.appendChild(infoDiv);
-  
-	  ['mod', 'ref', 'tab', 'link', 'alt', 'pres'].forEach(type => {
-		document.getElementById(`add-${type}-btn`)?.addEventListener('click', () => {
-		  this.addEditorRect(type);
-		});
 	  });
 	}
   };
   
   const typeDefs = {
-	mod:  { label: 'Modal Buttons',       color: 'rgba(0,0,255,0.3)',   baseTop: 100 },
-	ref:  { label: 'Ref Buttons',         color: 'rgba(0,255,0,0.3)',   baseTop: 300 },
-	tab:  { label: 'Tabs',                color: 'rgba(255,255,0,0.3)', baseTop: 500 },
-	link: { label: 'Link Buttons',        color: 'rgba(255, 140, 0, 0.3)', baseTop: 180 },
-	alt:  { label: 'Alt Buttons',         color: 'rgba(128,0,128,0.3)', baseTop: 440 },
-	pres: { label: 'Pres Link Buttons',  color: 'rgba(0,206,201,0.3)', baseTop: 480 }
+    mod:  { label: 'Modal Buttons',       color: 'rgba(0,0,255,0.3)',   baseTop: 100 },
+    ref:  { label: 'Ref Buttons',         color: 'rgba(0,255,0,0.3)',   baseTop: 180 },
+    tab:  { label: 'Tabs',                color: 'rgba(255,255,0,0.3)', baseTop: 260 },
+    link: { label: 'Link Buttons',        color: 'rgba(255, 140, 0, 0.3)', baseTop: 340 },
+    alt:  { label: 'Alt Buttons',         color: 'rgba(128,0,128,0.3)', baseTop: 420 },
+    pres: { label: 'Pres Link Buttons',   color: 'rgba(0,206,201,0.3)', baseTop: 500 },
+    pdf:  { label: 'PDF Buttons',         color: 'rgba(255, 0, 128, 0.3)', baseTop: 580 },
+    vid:  { label: 'Video Buttons',       color: 'rgba(0,0,0,0.3)', baseTop: 660 }
   };
-  
+  /*
+	function createRectValueField(rect, rectType, selector, existingValue) {
+		let inputEl;
+
+		if (rectType === 'pres') {
+			inputEl = $('<input type="text" class="rect-input" placeholder="Enter note or value...">');
+			if (existingValue) inputEl.val(existingValue);
+			rect.append(inputEl);
+		}
+
+		if (rectType === 'link' || rectType === 'alt') {
+			inputEl = $('<select class="rect-input"></select>');
+			const tileOptions = Object.keys(window.projectData.tiles)
+			.filter(id => id !== 'global' && id !== editorPanel.currentTileId)
+			.map(id => `<option value="${id}">${window.projectData.tiles[id].label || id}</option>`);
+			
+			inputEl.append(`<option value="">-- select --</option>` + tileOptions.join(''));
+
+			if (existingValue) inputEl.val(existingValue);
+			rect.append(inputEl);
+		}
+
+		inputEl.on('change input', () => {
+			rect.data('value', inputEl.val());
+		});
+	};
+
+	
+*/

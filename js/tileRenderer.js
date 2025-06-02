@@ -1,13 +1,30 @@
 // tileRenderer.js
+function renderGlobalIndicators(container) {
+	const globalRects = projectData.tiles.global?.rects || {};
+	const indicatorBar = document.createElement('div');
+	indicatorBar.className = 'global-indicator-bar';
 
+	Object.keys(globalRects).forEach(selector => {
+		const label = document.createElement('div');
+		label.className = 'global-indicator';
+		label.textContent = selector;
+		indicatorBar.appendChild(label);
+	});
+
+	container.appendChild(indicatorBar);
+}
 window.tileRenderer = {
 	isVerticalLayout: false,
   
 	async showTiles(projectData = window.projectData, isVerticalLayout = false) {
-	  this.isVerticalLayout = isVerticalLayout;
-	  const $container = $('#tile-cont');
-	  $container.empty();
+	  	this.isVerticalLayout = isVerticalLayout;
+	  	const $container = $('#tile-cont');
+	  	$container.empty();
   
+		const $globalContainer = $('<div class="tile-row globals"></div>');
+		renderGlobalIndicators($globalContainer[0]);
+		$container.append($globalContainer);
+
 	  // Create hover preview element if it doesn't exist
 	  let $preview = $('#tile-hover-preview');
 	  if (!$preview.length) {
@@ -16,6 +33,7 @@ window.tileRenderer = {
   
 	  const tileKeys = Object.keys(projectData.tiles || {});
 	  for (const tileId of tileKeys) {
+		if (tileId === 'global') continue;
 		const tileData = projectData.tiles[tileId];
 		const [col, row] = tileId.split('_').map(Number);
 		const formattedRow = row.toString().padStart(2, '0');
@@ -75,11 +93,13 @@ window.tileRenderer = {
 			}
 		}
 
-		// Link/Alt/Pres buttons
+		// Link/Alt/Pres/PDF/VID buttons
 		const typeDefs = {
 			link: { label: 'L', color: 'orange', prefix: 'link-btn', ext: 'png' },
 			alt:  { label: 'A', color: 'purple', prefix: 'alt-btn', ext: 'png' },
-			pres: { label: 'P', color: 'teal', prefix: 'pres-btn', ext: 'png' }
+			pres: { label: 'P', color: 'teal', prefix: 'pres-btn', ext: 'png' },
+			pdf:  { label: '📄', color: 'pdf', prefix: 'pdf-btn', ext: 'pdf' },
+			vid:  { label: '🎬', color: 'black', prefix: 'vid-btn', ext: 'mp4' }
 		};
 
 		let extraCircles = '';
@@ -88,14 +108,33 @@ window.tileRenderer = {
 			Object.keys(rects).filter(sel => sel.startsWith(`#${def.prefix}`)).forEach((sel, i) => {
 				const btnId = `${def.prefix}${i + 1}`;
 				const rect = rects[sel] || {};
-				const hoverAttr = type === 'link'
-				? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
-				: type === 'pres'
-				? `data-hover="Link to presentation: ${rect.value || ''}"`
-				: type === 'alt'
-				? `data-hover="Alternate: ${rect.target || ''}"`
-				: '';
-				const circle = `<div class="circle ${def.color}" ${hoverAttr} data-type="${type}" data-index="${i + 1}" data-tileid="${tileId}">${def.label}${i + 1}</div>`;
+				let hoverAttr = '';
+				let hasFile = false;
+				let filePath = '';
+				if (type === 'pdf') {
+					const pdfName = rect.pdf || (window.projectData.tiles[tileId]?.[`pdf${i + 1}`]);
+					hasFile = !!pdfName;
+					filePath = pdfName ? `pdfs/${pdfName}` : '';
+					hoverAttr = hasFile
+						? `data-hover="pdf-preview" data-pdf="${filePath}"`
+						: `data-hover="select-pdf"`;
+				} else if (type === 'vid') {
+					const vidName = rect.vid || (window.projectData.tiles[tileId]?.[`vid${i + 1}`]);
+					hasFile = !!vidName;
+					filePath = vidName ? `vids/${vidName}` : '';
+					hoverAttr = hasFile
+						? `data-hover="vid-preview" data-vid="${filePath}"`
+						: `data-hover="select-vid"`;
+				} else {
+					hoverAttr = type === 'link'
+						? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
+						: type === 'pres'
+						? `data-hover="Link to presentation: ${rect.value || ''}"`
+						: type === 'alt'
+						? `data-hover="Alternate: ${rect.target || ''}"`
+						: '';
+				}
+				const circle = `<div class="circle ${def.color}" ${hoverAttr} data-type="${type}" data-index="${i + 1}" data-tileid="${tileId}">${def.label}</div>`;
 				if (docked[btnId]) {
 					addDockedCircle(btnId, circle);
 				} else {
@@ -225,22 +264,82 @@ window.tileRenderer = {
 			return; // Stop early, don't proceed to editor
 		}
 
+		// PDF/VID: prompt for upload if missing
+		if (type === 'pdf') {
+			const tile = window.projectData.tiles[tileId];
+			const rectKey = `#pdf-btn${index}`;
+			const rect = tile?.rects?.[rectKey];
+			const pdfName = rect?.pdf || tile?.[`pdf${index}`];
+			if (!pdfName) {
+				const filePath = await window.electronAPI.selectFile('pdf');
+				if (!filePath) return;
+				const appDir = await window.electronAPI.getAppDir();
+				const pdfsDir = `${appDir}/pdfs`;
+				await window.electronAPI.makeDir(pdfsDir);
+				const fileName = filePath.split(/[\\/]/).pop();
+				const destPath = `${pdfsDir}/${fileName}`;
+				await window.electronAPI.copyFile(filePath, destPath);
+				if (rect) rect.pdf = fileName;
+				tile[`pdf${index}`] = fileName;
+				window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+				return;
+			}
+		}
+		if (type === 'vid') {
+			const tile = window.projectData.tiles[tileId];
+			const rectKey = `#vid-btn${index}`;
+			const rect = tile?.rects?.[rectKey];
+			const vidName = rect?.vid || tile?.[`vid${index}`];
+			if (!vidName) {
+				// Only accept .mp4 files
+				const filePath = await window.electronAPI.selectFile('mp4');
+				if (!filePath || !filePath.toLowerCase().endsWith('.mp4')) return;
+				const appDir = await window.electronAPI.getAppDir();
+				const vidsDir = `${appDir}/vids`;
+				await window.electronAPI.makeDir(vidsDir);
+				const fileName = filePath.split(/[\\/]/).pop();
+				const destPath = `${vidsDir}/${fileName}`;
+				await window.electronAPI.copyFile(filePath, destPath);
+				if (rect) rect.vid = fileName;
+				tile[`vid${index}`] = fileName;
+				window.tileRenderer.showTiles(window.projectData, window.tileRenderer.isVerticalLayout);
+				return;
+			}
+		}
+
 		// 👉 Only open editor if valid
 		window.editorPanel.handleIndicatorClick(e);
 	  });
 	  // Hover preview handlers
 	  $(document).on('mouseenter', '.circle', function (e) {
 		const hoverText = $(this).data('hover');
-		const imgPath = $(this).data('img');
-		//if (!imgPath) return;
-		if (hoverText) {
-				$preview.html(`<div class="hover-text">${hoverText}</div>`);
-			} else if (imgPath) {
+		const $el = $(this);
+		const type = $el.data('type');
+		if (type === 'pdf') {
+			const pdfPath = $el.attr('data-pdf');
+			if (pdfPath) {
+				$('#tile-hover-preview').html(`<embed src="${pdfPath}" type="application/pdf" width="180" height="120" style="background:#fff;border:1px solid #ccc;" />`);
+			} else {
+				$('#tile-hover-preview').html(`<div style="width:180px;height:120px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #ccc;"><img src="images/select-pdf.png" alt="Select PDF" style="width:48px;height:48px;opacity:0.7;"><br><span style="font-size:13px;">Select PDF</span></div>`);
+			}
+		} else if (type === 'vid') {
+			const vidPath = $el.attr('data-vid');
+			if (vidPath) {
+				$('#tile-hover-preview').html(`<video src="${vidPath}" width="180" height="120" controls style="background:#000;border:1px solid #ccc;"></video>`);
+			} else {
+				$('#tile-hover-preview').html(`<div style="width:180px;height:120px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #ccc;"><img src="images/select-video.png" alt="Select Video" style="width:48px;height:48px;opacity:0.7;"><br><span style="font-size:13px;">Select Video</span></div>`);
+			}
+		} else if (hoverText) {
+			$('#tile-hover-preview').html(`<div class="hover-text">${hoverText}</div>`);
+		} else {
+			const imgPath = $el.data('img');
+			if (imgPath) {
 				const img = new Image();
-				img.onload = () => $preview.html(`<img src="${imgPath}" alt="preview">`);
-				img.onerror = () => $preview.html(`<img src="images/placeholder.png" alt="preview">`);
+				img.onload = () => $('#tile-hover-preview').html(`<img src="${imgPath}" alt="preview">`);
+				img.onerror = () => $('#tile-hover-preview').html(`<img src="images/placeholder.png" alt="preview">`);
 				img.src = imgPath;
 			}
+		}
 	  });
   
 	  $(document).on('mousemove', '.circle', function (e) {
@@ -255,7 +354,7 @@ window.tileRenderer = {
 	  $(document).on('mouseleave', '.circle', function () {
 		$preview.hide().empty();
 	  });
-
+	  
 	  $('.tile-thumbnail').on('drop', async function (e) {
 		e.preventDefault();
 		const file = e.originalEvent.dataTransfer.files[0];
