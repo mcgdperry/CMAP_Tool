@@ -1,0 +1,135 @@
+/**
+ * Global CSS File
+ */
+
+* {
+  -webkit-touch-callout: none; 
+  -webkit-user-select: none; 
+}
+
+@media only screen 
+  and (min-width: 1080px) 
+  and (orientation: landscape) 
+  and (-webkit-min-device-pixel-ratio: 2) {
+	  body {
+		-webkit-transform-origin: top left;
+		-webkit-transform: scale(1.054);
+	  }
+}
+
+@media only screen 
+  and (min-width: 1112px) 
+  and (orientation: landscape) 
+  and (-webkit-min-device-pixel-ratio: 2) {
+	  body {
+		-webkit-transform-origin: top left;
+		-webkit-transform: scale(1.086);
+	  }
+}
+
+@media only screen 
+  and (min-width: 1194px) 
+  and (orientation: landscape) 
+  and (-webkit-min-device-pixel-ratio: 2) {
+	  body {
+		-webkit-transform-origin: top left;
+		-webkit-transform: scale(1.086);
+		
+		-webkit-transform: translateX(41px) scale(1.086);
+	  }
+}
+
+@media only screen 
+  and (min-width: 1366px) 
+  and (orientation: landscape) 
+  and (-webkit-min-device-pixel-ratio: 2) {
+	body {
+		-webkit-transform-origin: top left;
+		-webkit-transform: scale(1.334);
+	  }
+}
+
+body
+{
+	margin: 0px;
+	padding: 0px;
+	overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+#frame
+{
+	position: relative;
+	width: 1024px;
+	height: 768px;
+	overflow-y:hidden;
+	/*-webkit-transform:translate3d(0,0,0);*/
+}
+
+#bg-holder { position: absolute; }
+
+.bg, .tab, .modal, .glob-modal, .ref, .ovr, .knockout
+{
+	position: absolute;
+	width: 1024px;
+	height: 768px;
+	-webkit-background-size: 1024px 768px;
+}
+
+
+
+.inv{
+	background-color:#03F;
+	opacity:.5;
+	box-shadow: 0 0 0 2px white inset;
+	border: 1px dashed #F00;
+}
+
+.inv:after {content: attr(id); color: white; }
+
+/*.inner-close-btn.inv,*/ .outer-close-btn.inv
+{
+	background-color:#0F0;
+	opacity:.5;
+	box-shadow: 0 0 0 1px white inset;
+}
+/*
+.glob-btn.inv
+{
+	box-shadow: none;
+	border: none;
+}
+*/
+.close-block.inv
+{
+	background-color:#F31;
+	opacity:.5;
+}
+
+.inv-hover:hover::after {
+    content: attr(id);
+    position: absolute;
+    background: black;
+    color: white;
+    font-size: 12px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+#slide-title
+{
+	position: absolute;
+	top: 0px;
+	left: 130px;
+	width: 688px;
+	/*font-family: 'rale-bd';*/
+    font-size: 40px;
+	text-align: center;
+	background-color: lightblue;
+    font-size: 40px;
+	display: none;
+}

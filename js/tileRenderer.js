@@ -125,10 +125,14 @@ window.tileRenderer = {
 					hoverAttr = hasFile
 						? `data-hover="vid-preview" data-vid="${filePath}"`
 						: `data-hover="select-vid"`;
+				} else if (type === 'link') {
+					const targetId = rect.target || '';
+					const label = targetId && window.projectData.tiles[targetId]?.label
+						? ` (${window.projectData.tiles[targetId].label})`
+						: '';
+					hoverAttr = `data-hover="gotoSlide: Slide ${targetId}${label}"`;
 				} else {
-					hoverAttr = type === 'link'
-						? `data-hover="gotoSlide: Slide ${rect.target || ''}"`
-						: type === 'pres'
+					hoverAttr = type === 'pres'
 						? `data-hover="Link to presentation: ${rect.value || ''}"`
 						: type === 'alt'
 						? `data-hover="Alternate: ${rect.target || ''}"`

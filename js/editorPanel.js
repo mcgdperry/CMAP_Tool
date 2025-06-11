@@ -121,15 +121,16 @@ window.editorPanel = {
                 ...tile.rects[sel],
                 ...data
             };
-            // PDF: store pdfN attribute if present
-            if (sel.startsWith('#pdf-btn') && data.pdf) {
-                const pdfNum = sel.match(/\d+/)?.[0];
-                if (pdfNum) tile[`pdf${pdfNum}`] = data.pdf;
+            // Remove legacy pdfN/vidN at tile level (fixes double save)
+            if (sel.startsWith('#pdf-btn')) {
+                Object.keys(tile)
+                    .filter(k => /^pdf\d+$/.test(k))
+                    .forEach(k => { delete tile[k]; });
             }
-            // VID: store vidN attribute if present
-            if (sel.startsWith('#vid-btn') && data.vid) {
-                const vidNum = sel.match(/\d+/)?.[0];
-                if (vidNum) tile[`vid${vidNum}`] = data.vid;
+            if (sel.startsWith('#vid-btn')) {
+                Object.keys(tile)
+                    .filter(k => /^vid\d+$/.test(k))
+                    .forEach(k => { delete tile[k]; });
             }
         }
     },
@@ -209,8 +210,26 @@ window.editorPanel = {
         } else {
             globalRects = window.projectData.tiles.global?.rects || {};
         }
-        const classRects = {}, idRects = {};
+        // --- Ensure all meta fields are included in global rects before saving ---
+        // (merge any values/targets/pdf/vid from DOM if missing)
+        Object.entries(globalRects).forEach(([sel, data]) => {
+            const rectEl = document.querySelector(`#globalRectsContainer .rect[data-selector="${sel}"]`);
+            if (!rectEl) return;
+            // Value
+            const input = rectEl.querySelector('input');
+            if (input && input.type !== 'file') data.value = input.value;
+            // Target
+            const select = rectEl.querySelector('select');
+            if (select) data.target = select.value;
+            // PDF
+            const pdfSpan = rectEl.querySelector('.pdf-filename');
+            if (pdfSpan) data.pdf = pdfSpan.dataset.filename || '';
+            // VID
+            const vidSpan = rectEl.querySelector('.vid-filename');
+            if (vidSpan) data.vid = vidSpan.dataset.filename || '';
+        });
 
+        const classRects = {}, idRects = {};
         Object.entries(globalRects).forEach(([sel, data]) => {
             if (sel.startsWith('.')) classRects[sel] = data;
             else if (sel.startsWith('#')) idRects[sel] = data;
@@ -369,7 +388,8 @@ window.editorPanel = {
                 Object.keys(window.projectData.tiles)
                     .filter(id => id !== tileId && id !== 'global')
                     .forEach(id => {
-                        select.innerHTML += `<option value="${id}">${id}</option>`;
+                        const label = window.projectData.tiles[id]?.label || '';
+                        select.innerHTML += `<option value="${id}">${id}${label ? ' – ' + label : ''}</option>`;
                     });
             }
 
@@ -381,6 +401,8 @@ window.editorPanel = {
                     });
             }
 
+            // --- Ensure correct label is shown after save ---
+            select.value = meta.target || '';
             select.onchange = () => meta.target = select.value;
             rect.appendChild(select);
         }
@@ -410,10 +432,11 @@ window.editorPanel = {
             pdfBtn.onclick = async () => {
                 const filePath = await window.electronAPI.selectFile('pdf');
                 if (!filePath) return;
+                const fileName = filePath.split(/[\\/]/).pop();
+                // Only copy to app-level pdfs dir, not tile folder, and do NOT create any tile folder here
                 const appDir = await window.electronAPI.getAppDir();
                 const pdfsDir = `${appDir}/pdfs`;
                 await window.electronAPI.makeDir(pdfsDir);
-                const fileName = filePath.split(/[\\/]/).pop();
                 const destPath = `${pdfsDir}/${fileName}`;
                 await window.electronAPI.copyFile(filePath, destPath);
                 filenameSpan.textContent = fileName;
@@ -439,13 +462,13 @@ window.editorPanel = {
             filenameSpan.style.marginTop = '4px';
 
             vidBtn.onclick = async () => {
-                // Only accept .mp4 files
                 const filePath = await window.electronAPI.selectFile('mp4');
                 if (!filePath || !filePath.toLowerCase().endsWith('.mp4')) return;
+                const fileName = filePath.split(/[\\/]/).pop();
+                // Only copy to app-level vids dir, not tile folder, and do NOT create any tile folder here
                 const appDir = await window.electronAPI.getAppDir();
                 const vidsDir = `${appDir}/vids`;
                 await window.electronAPI.makeDir(vidsDir);
-                const fileName = filePath.split(/[\\/]/).pop();
                 const destPath = `${vidsDir}/${fileName}`;
                 await window.electronAPI.copyFile(filePath, destPath);
                 filenameSpan.textContent = fileName;
@@ -669,6 +692,13 @@ window.editorPanel = {
                 window.makeDraggableResizable(rect);
             });
         });
+
+        // Ensure pointer events are enabled for global rects in global mode
+        container.style.pointerEvents = 'auto';
+        // Also ensure all child rects are interactive
+        Array.from(container.querySelectorAll('.rect')).forEach(rect => {
+            rect.style.pointerEvents = 'auto';
+        });
     },
 
     setGlobalMode(enabled) {
@@ -684,6 +714,7 @@ window.editorPanel = {
             this._loadGlobalRects();
             editorRects.style.display = 'none';
             globalRects.style.display = 'block';
+            globalRects.style.pointerEvents = 'auto'; // <-- Enable interaction
             buttons.classList.add('global-mode');
 
             buttons.innerHTML = '';
@@ -723,6 +754,7 @@ window.editorPanel = {
             editorRects.style.display = 'block';
             globalRects.style.display = 'none';
             buttons.classList.remove('global-mode');
+            globalRects.style.pointerEvents = 'none'; // <-- Disable interaction when not in global mode
 
             buttons.innerHTML = `
                 <button id="add-mod-btn">+ Mod</button>
@@ -980,7 +1012,8 @@ window.editorPanel = {
                     select.innerHTML = `<option value="">Select</option>`;
                     if (btnId.startsWith('link')) {
                         Object.keys(window.projectData.tiles).filter(id => id !== tileId).forEach(sid => {
-                            select.innerHTML += `<option value="${sid}" ${sid === saved.target ? 'selected' : ''}>${sid}</option>`;
+                            const label = window.projectData.tiles[sid]?.label || '';
+                            select.innerHTML += `<option value="${sid}" ${sid === saved.target ? 'selected' : ''}>${sid}${label ? ' – ' + label : ''}</option>`;
                         });
                     } else if (btnId.startsWith('alt')) {
                         Object.keys(rectData).filter(k => !k.includes('alt')).forEach(sel => {
@@ -1099,8 +1132,9 @@ window.editorPanel = {
 		  select.className = 'rect-meta';
 		  select.innerHTML = `<option value="">Select</option>`;
 		  if (id.startsWith('link')) {
-			Object.keys(window.projectData.tiles).filter(id => id !== tileId).forEach(sid => {
-			  select.innerHTML += `<option value="${sid}" ${sid === vals.target ? 'selected' : ''}>${sid}</option>`;
+			Object.keys(window.projectData.tiles).filter(id => id !== tileId && id !== 'global').forEach(sid => {
+			  const label = window.projectData.tiles[sid]?.label || '';
+			  select.innerHTML += `<option value="${sid}" ${sid === vals.target ? 'selected' : ''}>${sid}${label ? ' – ' + label : ''}</option>`;
 			});
 		  } else if (id.startsWith('alt')) {
 			Object.keys(rectData).filter(k => !k.includes('alt')).forEach(k => {

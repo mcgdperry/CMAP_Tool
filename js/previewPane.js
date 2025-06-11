@@ -22,10 +22,19 @@ window.previewPane = {
 	  });
   
 	  // Toggle preview content
-	  $('#toggle-preview-btn').on('click', function () {
-		const content = $('#manifest-preview-content');
-		content.slideToggle(200);
-		$('#manifest-preview-content').text(content.is(':visible') ? 'Hide' : 'Show');
+	  $('#toggle-preview-btn').on('click', () => {
+		const $content = $('#manifest-preview-content');
+		const $btn = $('#toggle-preview-btn');
+		if ($content.is(':visible')) {
+		  $content.slideUp(200, () => {
+			$btn.text('Show');
+		  });
+		} else {
+		  $content.slideDown(200, () => {
+			$btn.text('Hide');
+			this.update(); // Ensure manifest content is restored when showing
+		  });
+		}
 	  });
   
 	  // Sync brand name on input

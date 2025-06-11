@@ -32,10 +32,25 @@ input[type="text"]#inp-brandname {
   gap: 12px;
   align-items: center;
   background: #eef6fb;
-  padding: 16px 24px;
+  padding: 12px 18px 8px 18px; /* reduce top/bottom padding for less vertical space */
   border-bottom: 1px solid #c0d7e8;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   font-family: 'Segoe UI', sans-serif;
+  flex-wrap: wrap;
+  flex-direction: row;
+  flex-flow: row wrap;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-right: 18px;
+}
+
+.toolbar-group:not(:last-child) {
+  border-right: 1px solid #c0d7e8;
+  padding-right: 18px;
 }
 
 /* --- Brand Input --- */
@@ -71,8 +86,9 @@ input[type="text"]#inp-brandname {
 .toolbar-button,
 #gen-btn, #open-btn,
 #switch-btn, #screens-btn, #import-json,
-#export-json, #export-js, #export-css, #export-veeva {
-  padding: 10px 20px;
+#export-json, #export-js, #export-css, #export-veeva,
+#update-screens, #create-csv, #zip-legacy, #zip-shared, #connect-veeva {
+  padding: 10px 18px;
   font-size: 14px;
   font-weight: bold;
   border: none;
@@ -83,12 +99,14 @@ input[type="text"]#inp-brandname {
   transition: all 0.3s ease;
   background: linear-gradient(135deg, #64b5f6, #42a5f5);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
 }
 
 .toolbar-button:hover,
 #gen-btn:hover, #open-btn:hover,
 #switch-btn:hover, #screens-btn:hover, #import-json:hover,
-#export-json:hover, #export-js:hover, #export-css:hover, #export-veeva:hover {
+#export-json:hover, #export-js:hover, #export-css:hover, #export-veeva:hover,
+#update-screens:hover, #create-csv:hover, #zip-legacy:hover, #zip-shared:hover, #connect-veeva:hover {
   background: linear-gradient(135deg, #42a5f5, #1e88e5);
   transform: scale(1.03);
 }
@@ -567,6 +585,8 @@ input[type="text"]#inp-brandname {
     z-index: 999;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
   }
   
   .image-editor.hidden {
@@ -686,10 +706,13 @@ input[type="text"]#inp-brandname {
 
 .editor-canvas {
   position: relative;
-  width: 100%;
+  width: 100vw;
+  height: 100vh;
+  min-width: 1180px;
+  min-height: 900px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding-right: 230px; /* make space for side panel */
 }
 
 .editor-tools {
@@ -701,10 +724,6 @@ input[type="text"]#inp-brandname {
 
 .editor-header button {
   margin-left: 10px;
-}
-.editor-image {
-  max-width: 90%;
-  max-height: 90%;
 }
 
 #editor-info {
@@ -1066,4 +1085,80 @@ input[type="text"]#inp-brandname {
   margin-bottom: 4px;
   font-weight: bold;
   letter-spacing: 0.2px;
+}
+
+#frameLayer {
+  position: relative;
+  width: 1180px;
+  height: 900px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+#frameImage {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1180px;
+  height: 900px;
+  z-index: 1;
+  pointer-events: none;
+  display: none;
+}
+#slideGroup {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 1024px;
+  height: 768px;
+  transform: translate(-50%, -50%) scale(1);
+  z-index: 2;
+  will-change: transform;
+  background: transparent;
+}
+#imageLayer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1024px;
+  height: 768px;
+  z-index: 2;
+  pointer-events: none;
+}
+#editorImage {
+  width: 1024px;
+  height: 768px;
+  display: block;
+  pointer-events: none;
+}
+#overlayLayer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1024px;
+  height: 768px;
+  z-index: 3;
+  pointer-events: none;
+  display: none;
+}
+#overlayImage {
+  width: 1024px;
+  height: 768px;
+  display: block;
+}
+#rectLayer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1024px;
+  height: 768px;
+  z-index: 4;
+  pointer-events: auto;
+}
+#editorRectsContainer, #globalRectsContainer {
+  position: absolute;
+  left: 0; top: 0;
+  width: 1024px;
+  height: 768px;
+  pointer-events: auto;
+}
+#globalRectsContainer {
+  pointer-events: auto !important;
 }

@@ -9,15 +9,28 @@ window.ui = {
       </div>
 
       <div id="toolbar">
-        <button id="screens-btn">Import Screens</button>
-        <button id="open-btn">Open Manifest</button>
-        <button id="gen-btn">Generate Manifest</button>
-        <button id="switch-btn">Switch Layout</button>
-        <button id="import-json">Import JSON</button>
-        <button id="export-json">Export JSON</button>
-        <button id="export-js">Export JS</button>
-        <button id="export-css">Export CSS</button>
-        <button id="export-veeva">Export Veeva</button>
+        <div class="toolbar-group">
+          <button id="screens-btn">Import Screens</button>
+          <button id="update-screens">Update Screens</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="open-btn">Open Manifest</button>
+          <button id="gen-btn">Generate Manifest</button>
+          <button id="switch-btn">Switch Layout</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="import-json">Import JSON</button>
+          <button id="export-json">Export JSON</button>
+          <button id="export-js">Export JS</button>
+          <button id="export-css">Export CSS</button>
+          <button id="export-veeva">Export Veeva</button>
+        </div>
+        <div class="toolbar-group">
+          <button id="create-csv">Create CSV</button>
+          <button id="zip-legacy">Zip Legacy</button>
+          <button id="zip-shared">Zip Shared</button>
+          <button id="connect-veeva">Connect to Veeva</button>
+        </div>
       </div>
       <textarea id="preview-pane" readonly></textarea>
 
@@ -106,9 +119,21 @@ window.ui = {
             </div>
           </div>
           <div class="editor-canvas">
-            <img id="editorImage" src="" class="editor-image" />
-            <div id="editorRectsContainer"></div>
-            <div id="globalRectsContainer" style="pointer-events: none;"></div>
+            <div id="frameLayer" style="position:relative; width:1180px; height:900px; margin:0 auto; display:flex; align-items:center; justify-content:center;">
+              <img id="frameImage" src="images/frame.png" style="position:absolute; left:0; top:0; width:1180px; height:900px; z-index:1; display:none; pointer-events:none;" draggable="false" />
+              <div id="slideGroup" style="position:absolute; left:50%; top:50%; width:1024px; height:768px; transform:translate(-50%,-50%) scale(1); z-index:2;">
+                <div id="imageLayer" style="position:absolute; left:0; top:0; width:1024px; height:768px; z-index:2;">
+                  <img id="editorImage" src="" class="editor-image" style="width:1024px; height:768px; display:block; pointer-events:none;" draggable="false" />
+                </div>
+                <div id="overlayLayer" style="position:absolute; left:0; top:0; width:1024px; height:768px; z-index:3; pointer-events:none; display:none;">
+                  <img id="overlayImage" src="images/overlay.png" style="width:1024px; height:768px; display:block;" draggable="false" />
+                </div>
+                <div id="rectLayer" style="position:absolute; left:0; top:0; width:1024px; height:768px; z-index:4; pointer-events:auto;">
+                  <div id="editorRectsContainer"></div>
+                  <div id="globalRectsContainer" style="pointer-events: none;"></div>
+                </div>
+              </div>
+            </div>
           </div>
       </div>
       <div id="map-scroll">
@@ -133,6 +158,21 @@ window.ui = {
 
       await window.ui._loadScreensAndLayout();
       window.ui.showToast('✅ Screens imported successfully!');
+    });
+
+    // -- Update Screens Button Handler (update import) --
+    $('#update-screens').on('click', async () => {
+      const result = await window.electronAPI.selectScreensFolder();
+      if (result.canceled || !result.filePaths.length) return;
+      const selectedFolder = result.filePaths[0];
+      const appDir = await window.electronAPI.getAppDir();
+      const importResult = await window.electronAPI.importScreens(selectedFolder, appDir);
+      if (!importResult.success) {
+        alert('Error updating screens: ' + (importResult.error || 'Unknown error'));
+        return;
+      }
+      await window.ui._loadScreensAndLayout();
+      window.ui.showToast('✅ Screens updated!');
     });
 
     // -- Drop Handler (drag folder) --
@@ -210,7 +250,32 @@ window.ui = {
           tabCount: tabs.length,
           thumb // Keep the thumb intact so nothing breaks on re-render
         };
+
+        // --- Remove pdfN/vidN keys at tile level for per-tile rects ---
+        Object.keys(tileData)
+          .filter(k => /^pdf\d+$/.test(k) || /^vid\d+$/.test(k))
+          .forEach(k => { delete tileData[k]; });
       });
+
+      // --- Ensure global rects meta fields are included before export ---
+      if (clonedTiles.global && clonedTiles.global.rects) {
+        Object.entries(clonedTiles.global.rects).forEach(([sel, data]) => {
+          const rectEl = document.querySelector(`#globalRectsContainer .rect[data-selector="${sel}"]`);
+          if (!rectEl) return;
+          // Value
+          const input = rectEl.querySelector('input');
+          if (input && input.type !== 'file') data.value = input.value;
+          // Target
+          const select = rectEl.querySelector('select');
+          if (select) data.target = select.value;
+          // PDF
+          const pdfSpan = rectEl.querySelector('.pdf-filename');
+          if (pdfSpan) data.pdf = pdfSpan.dataset.filename || '';
+          // VID
+          const vidSpan = rectEl.querySelector('.vid-filename');
+          if (vidSpan) data.vid = vidSpan.dataset.filename || '';
+        });
+      }
 
       const sortedTiles = Object.keys(clonedTiles)
         .sort((a, b) => {
@@ -541,4 +606,35 @@ $(document).off('change', '#show-global-rects').on('change', '#show-global-rects
   // Optionally, update editorPanel mode for correct logic
   window.editorPanel.setGlobalMode(checked);
 });
+
+// --- Editor scaling and layer toggles ---
+    function updateEditorScale() {
+      const scale = parseInt($('#editor-scale').val(), 10) / 100;
+      $('#slideGroup').css('transform', `translate(-50%,-50%) scale(${scale})`);
+    }
+    // Ensure this is bound after DOM is ready
+    $(document).on('input change', '#editor-scale', updateEditorScale);
+
+    // Overlay toggle
+    $(document).on('change', '#show-overlay', function() {
+      $('#overlayLayer').css('display', this.checked ? 'block' : 'none');
+    });
+
+    // Frame toggle
+    $(document).on('change', '#show-tablet-frame', function() {
+      $('#frameImage').css('display', this.checked ? 'block' : 'none');
+    });
+
+    // On editor open/close, always reset scale and overlays
+    $(document).on('click', '#closeEditor, #saveEditor', function() {
+      $('#editor-scale').val(100);
+      updateEditorScale();
+      $('#show-tablet-frame').prop('checked', false);
+      $('#frameImage').hide();
+      $('#show-overlay').prop('checked', false);
+      $('#overlayLayer').hide();
+    });
+
+    // --- Ensure rects are always inside 1024x768 area ---
+    // (Rect creation/drag logic should already use #rectLayer as parent, so no change needed here)
 
